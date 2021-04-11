@@ -1,0 +1,9 @@
+functio something(a: isize, c: isize, r: &mut isize) {
+  *r = a + c;
+}
+
+let a = 3;
+let b = 4;
+let mut r = 0;
+
+something(a, b, &mut r);

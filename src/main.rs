@@ -2,8 +2,8 @@ extern crate clap;
 use clap::{App, Arg};
 mod base_55;
 fn main() {
-    let matches = App::new("My Super Program")
-        .version("1.0")
+    let matches = App::new("AbleScript")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Able <abl3theabove@gmail.com>")
         .about("Does awesome things")
         .arg(
