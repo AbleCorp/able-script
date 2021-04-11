@@ -1,0 +1,6 @@
+functio hello(words){
+  words print;
+}
+
+
+hello("wonk");
