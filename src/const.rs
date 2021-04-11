@@ -13,3 +13,4 @@ pub const STD_RNG: i32 = 4; //The standard random number is 4 (source: https://x
 pub const INF: i32 = i32::max_value();
 
 pub const OCTOTHORPE: char = '#';
+pub const ANSWER: i32 = 42;
