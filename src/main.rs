@@ -1,6 +1,9 @@
 extern crate clap;
 use clap::{App, Arg};
+
 mod base_55;
+mod parser;
+pub mod tokens;
 fn main() {
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
@@ -11,18 +14,15 @@ fn main() {
                 .short("f")
                 .long("file")
                 .value_name("FILE")
-                .help("Sets a custom config file")
+                .help("Set the path to interpret from")
                 .takes_value(true),
         )
         .get_matches();
 
     match matches.value_of("file") {
         Some(file_path) => {
-            println!("{}", file_path);
             // Start parsing that file
-            for x in file_path.chars() {
-                println!("{}", base_55::char2num(x));
-            }
+            parser::parse(file_path.to_string());
         }
         None => {
             println!("hi");
