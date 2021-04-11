@@ -4,6 +4,7 @@ use clap::{App, Arg};
 mod base_55;
 mod parser;
 pub mod tokens;
+
 fn main() {
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
@@ -18,11 +19,9 @@ fn main() {
                 .takes_value(true),
         )
         .get_matches();
-
     match matches.value_of("file") {
         Some(file_path) => {
             // Start parsing that file
-            parser::parse(file_path.to_string());
         }
         None => {
             println!("hi");

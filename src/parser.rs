@@ -1,15 +1,17 @@
-use crate::tokens;
+use crate::tokens::{ABOOL, TOKENS};
 
-pub fn parse(line: String) {
-    //match the tokens
-    //This will not work
-    let iter = line.split_whitespace();
-    for x in iter {
-        match x {
-            "#" => {
-                println!("hi");
-            }
-            _ => {}
-        }
+pub fn abool2num(abool: ABOOL) -> i32 {
+    match abool {
+        ABOOL::NEVER => -1,
+        ABOOL::SOMETIMES => 0,
+        ABOOL::ALWAYS => 1,
+    }
+}
+pub fn num2abool(number: i32) -> ABOOL {
+    match number {
+        -1 => ABOOL::NEVER,
+        0 => ABOOL::SOMETIMES,
+        1 => ABOOL::ALWAYS,
+        _ => ABOOL::SOMETIMES,
     }
 }
