@@ -1,22 +1,29 @@
-use std::env;
-pub use std::f64::consts::{
-    PI, // For the heretics among us
-    TAU,
-};
-
-mod file_load;
-mod prompt;
-mod tokens;
+extern crate clap;
+use clap::{App, Arg};
 
 fn main() {
-    let mut args: Vec<String> = env::args().collect();
-    args.remove(0);
-    if args.len() > 1 {
-        println!("Usage: alang [script]");
-    } else if args.len() == 1 {
-        let filepath = &args[0];
-        file_load::run_file(filepath);
-    } else {
-        prompt::prompt();
+    let matches = App::new("My Super Program")
+        .version("1.0")
+        .author("Able <abl3theabove@gmail.com>")
+        .about("Does awesome things")
+        .arg(
+            Arg::with_name("file")
+                .short("f")
+                .long("file")
+                .value_name("FILE")
+                .help("Sets a custom config file")
+                .takes_value(true),
+        )
+        .get_matches();
+
+    match matches.value_of("file") {
+        Some(file_path) => {
+            println!("{}", file_path);
+            // Start parsing that file
+        }
+        None => {
+            println!("hi");
+            //start the prompt
+        }
     }
 }
