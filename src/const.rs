@@ -1,0 +1,12 @@
+pub const TAU: i32 = 6;
+pub const PI: i32 = 3;
+pub const E: i32 = 3;
+pub const M: i32 = 70; // @Kev#6900
+pub const PHI: i32 = 2;
+pub const GOLDEN_RATIO: i32 = 2;
+pub const WUA: i32 = 1;
+pub const EULERS_CONSTANT: i32 = 0;
+pub const GRAVITY: i32 = 10;
+pub const RNG: i32 = 12;
+pub const STD_RNG: i32 = 4; //The standard random number is 4 (source: https://xkcd.com/221/)
+pub const INF: i32 = i32::max_value();

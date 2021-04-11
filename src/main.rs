@@ -1,6 +1,6 @@
 extern crate clap;
 use clap::{App, Arg};
-
+mod base_55;
 fn main() {
     let matches = App::new("My Super Program")
         .version("1.0")
@@ -20,6 +20,9 @@ fn main() {
         Some(file_path) => {
             println!("{}", file_path);
             // Start parsing that file
+            for x in file_path.chars() {
+                println!("{}", base_55::char2num(x));
+            }
         }
         None => {
             println!("hi");
