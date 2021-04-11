@@ -10,4 +10,7 @@ pub enum tokens {
     BOOLEAN,           // True, False
     ABOOLEAN,          // Always, Sometimes, Never
     PRINT,             // Prints the preceding things
+
+    MELO,
+    TDARK,
 }
