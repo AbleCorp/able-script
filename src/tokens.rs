@@ -1,27 +1,100 @@
-pub enum TOKENS {
-    LEFT_PARENTHESIS,                              // (
-    RIGHT_PARENTHESIS,                             // )
-    LEFT_BRACKET,                                  // [
-    RIGHT_BRACKET,                                 // ]
-    LEFT_BRACE,                                    // {
-    RIGHT_BRACE,                                   // }
-    COMMENT { value: String },                     // #
-    SUBTRACT,                                      // -
-    ADDITION,                                      // +
-    MULTIPLY,                                      // *
-    DIVIDE,                                        // /
-    CHAR,                                          // Base52 based character
-    FUNCTION,                                      // functio
-    BF_FUNCTION { name: String, functio: String }, // Brain fuck FFI
-    VARIABLE,                                      // Variable bro
-    BOOLEAN { state: bool },                       // True, False
-    ABOOLEAN { state: ABOOL },                     // Always, Sometimes, Never
-    PRINT,                                         // Prints the preceding things
-    MELO, // Ban the following variable from ever being used again
-    T_DARK,
+use logos::Logos;
+
+#[derive(Logos, Debug, PartialEq)]
+pub enum Token {
+    /// A C-complaint identifier
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
+    Identifier,
+
+    #[token("(")]
+    LeftParenthesis,
+
+    #[token(")")]
+    RightParenthesis,
+
+    #[token("[")]
+    LeftBracket,
+
+    #[token("]")]
+    RightBracket,
+
+    #[token("{")]
+    LeftBrace,
+
+    #[token("}")]
+    RightBrace,
+
+    #[token(";")]
+    Semicolon,
+
+    #[regex(r"#.*")]
+    Comment,
+
+    #[token("-")]
+    Subtract,
+
+    #[token("+")]
+    Addition,
+
+    #[token("*")]
+    Multiply,
+
+    #[token("/")]
+    Divide,
+
+    #[token("=")]
+    Assignment,
+
+    /// Base52 based character ('a')
+    #[token("'.*'")]
+    Char,
+
+    #[token("functio")]
+    Function,
+
+    /// Brain fuck FFI
+    #[token("bff")]
+    BfFunction,
+
+    /// Variable bro
+    #[token("var")]
+    Variable,
+
+    /// True, False
+    #[regex("true|false")]
+    Boolean,
+
+    /// Always, Sometimes, Never
+    #[regex("always|sometimes|never")]
+    Aboolean,
+
+    /// String
+    #[regex("\"(\\.|[^\"])*\"")]
+    String,
+
+    /// Integer
+    #[regex(r"[0-9]+")]
+    Integer,
+
+    /// Prints the preceding things
+    #[token("print")]
+    Print,
+
+    /// Ban the following variable from ever being used again
+    #[token("melo")]
+    Melo,
+
+    #[token("T-Dark")]
+    TDark,
+
+    #[regex(r"[ \t\n\f]+", logos::skip)]
+    #[error]
+    Error,
 }
-pub enum ABOOL {
-    NEVER = -1,
-    SOMETIMES = 0,
-    ALWAYS = 1,
+
+#[derive(Debug, PartialEq)]
+pub enum Abool {
+    Never = -1,
+    Sometimes = 0,
+    Always = 1,
 }

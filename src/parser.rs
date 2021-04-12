@@ -1,17 +1,17 @@
-use crate::tokens::{ABOOL, TOKENS};
+use crate::tokens::{Abool, Token};
 
-pub fn abool2num(abool: ABOOL) -> i32 {
+pub fn abool2num(abool: Abool) -> i32 {
     match abool {
-        ABOOL::NEVER => -1,
-        ABOOL::SOMETIMES => 0,
-        ABOOL::ALWAYS => 1,
+        Abool::Never => -1,
+        Abool::Sometimes => 0,
+        Abool::Always => 1,
     }
 }
-pub fn num2abool(number: i32) -> ABOOL {
+pub fn num2abool(number: i32) -> Abool {
     match number {
-        -1 => ABOOL::NEVER,
-        0 => ABOOL::SOMETIMES,
-        1 => ABOOL::ALWAYS,
-        _ => ABOOL::SOMETIMES,
+        -1 => Abool::Never,
+        0 => Abool::Sometimes,
+        1 => Abool::Always,
+        _ => Abool::Sometimes,
     }
 }
