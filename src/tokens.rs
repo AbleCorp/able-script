@@ -15,7 +15,7 @@ pub enum TOKENS {
     BF_FUNCTION { name: String, functio: String }, // Brain fuck FFI
     VARIABLE,                                      // Variable bro
     BOOLEAN { state: bool },                       // True, False
-    ABOOLEAN { state: u8 },                        // Always, Sometimes, Never
+    ABOOLEAN { state: ABOOL },                     // Always, Sometimes, Never
     PRINT,                                         // Prints the preceding things
     MELO, // Ban the following variable from ever being used again
     T_DARK,
