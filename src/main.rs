@@ -1,12 +1,9 @@
-extern crate clap;
-use clap::{App, Arg};
-
 mod base_55;
 mod parser;
-pub mod tokens;
 mod scanner;
+mod tokens;
 
-use logos::Logos;
+use clap::{App, Arg};
 use scanner::Scanner;
 
 fn main() {
