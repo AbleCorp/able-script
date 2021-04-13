@@ -4,8 +4,10 @@ use clap::{App, Arg};
 mod base_55;
 mod parser;
 pub mod tokens;
+mod scanner;
 
 use logos::Logos;
+use scanner::Scanner;
 
 fn main() {
     let matches = App::new("AbleScript")
@@ -27,10 +29,8 @@ fn main() {
             let source = std::fs::read_to_string(file_path).unwrap();
 
             // Print token type: `value`
-            let mut lex = tokens::Token::lexer(&source);
-            while let Some(token) = lex.next() {
-                println!("{:?}: `{}`", token, lex.slice());
-            }
+            let mut scanner = Scanner::new(&source);
+            scanner.scan();
         }
         None => {
             println!("hi");
