@@ -2,11 +2,14 @@ mod base_55;
 mod parser;
 mod scanner;
 mod tokens;
+mod variables;
 
 use clap::{App, Arg};
 use scanner::Scanner;
 
 fn main() {
+    variables::test();
+
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Able <abl3theabove@gmail.com>")
@@ -20,6 +23,7 @@ fn main() {
                 .takes_value(true),
         )
         .get_matches();
+
     match matches.value_of("file") {
         Some(file_path) => {
             // Read file
