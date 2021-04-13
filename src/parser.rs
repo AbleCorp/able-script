@@ -1,4 +1,4 @@
-use crate::tokens::{Abool, Token};
+use crate::tokens::Abool;
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {
