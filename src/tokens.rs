@@ -2,6 +2,23 @@ use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq)]
 pub enum Token {
+    // Literals
+    /// True, False
+    #[regex("true|false")]
+    Boolean,
+
+    /// Always, Sometimes, Never
+    #[regex("always|sometimes|never")]
+    Aboolean,
+
+    /// String
+    #[regex("\"(\\.|[^\"])*\"")]
+    String,
+
+    /// Integer
+    #[regex(r"[0-9]+")]
+    Integer,
+
     /// A C-complaint identifier
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
     Identifier,
@@ -60,22 +77,6 @@ pub enum Token {
     /// Variable bro
     #[token("var")]
     Variable,
-
-    /// True, False
-    #[regex("true|false")]
-    Boolean,
-
-    /// Always, Sometimes, Never
-    #[regex("always|sometimes|never")]
-    Aboolean,
-
-    /// String
-    #[regex("\"(\\.|[^\"])*\"")]
-    String,
-
-    /// Integer
-    #[regex(r"[0-9]+")]
-    Integer,
 
     /// Prints the preceding things
     #[token("print")]

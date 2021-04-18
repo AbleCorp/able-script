@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod base_55;
+mod error;
 mod parser;
 mod tokens;
 mod variables;

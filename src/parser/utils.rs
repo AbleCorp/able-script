@@ -1,4 +1,7 @@
-use crate::tokens::{Abool, Token};
+use crate::{
+    error::{Error, ErrorKind},
+    tokens::{Abool, Token},
+};
 
 use super::{ParseError, Parser};
 
@@ -20,11 +23,14 @@ pub fn num2abool(number: i32) -> Abool {
 
 impl<'a> Parser<'a> {
     /// Require type of token as next and return it's value (sometimes irrelevant)
-    pub(super) fn require(&mut self, with: Token) -> Result<String, ParseError> {
+    pub(super) fn require(&mut self, with: Token) -> Result<String, Error> {
         if self.lexer.next() == Some(with) {
             Ok(self.lexer.slice().to_owned())
         } else {
-            Err(ParseError::UnexpectedToken)
+            Err(Error {
+                kind: ErrorKind::SyntaxError,
+                position: self.lexer.span(),
+            })
         }
     }
 }
