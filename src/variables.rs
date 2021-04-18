@@ -1,11 +1,29 @@
+use rand::Rng;
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Abool {
+    Never = -1,
+    Sometimes = 0,
+    Always = 1,
+}
+
+impl Into<bool> for Abool {
+    fn into(self) -> bool {
+        match self {
+            Abool::Never => false,
+            Abool::Always => true,
+            Abool::Sometimes => rand::thread_rng().gen(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Value {
     Str(String),
     Int(i32),
     Bool(bool),
-    //TODO(Able): Add abool and other variable types
+    Abool(Abool),
 }
 
 #[derive(Debug)]

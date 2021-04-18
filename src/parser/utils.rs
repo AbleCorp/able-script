@@ -1,9 +1,8 @@
-use crate::{
-    error::{Error, ErrorKind},
-    tokens::{Abool, Token},
-};
+use crate::error::{Error, ErrorKind};
+use crate::tokens::Token;
+use crate::variables::Abool;
 
-use super::{ParseError, Parser};
+use super::Parser;
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {

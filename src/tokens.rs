@@ -103,10 +103,3 @@ pub enum Token {
     #[error]
     Error,
 }
-
-#[derive(Debug, PartialEq)]
-pub enum Abool {
-    Never = -1,
-    Sometimes = 0,
-    Always = 1,
-}

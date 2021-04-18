@@ -3,20 +3,10 @@ mod utils;
 
 use item::Expr;
 
-use crate::variables::Value;
-use crate::{
-    error::{Error, ErrorKind},
-    tokens::Token,
-};
+use crate::error::{Error, ErrorKind};
+use crate::tokens::Token;
 
 use logos::Logos;
-
-#[derive(Debug)]
-pub enum ParseError {
-    UnexpectedToken,
-    LexError,
-    UnexpectedEOF,
-}
 
 /// Parser structure / state machine
 pub struct Parser<'a> {
