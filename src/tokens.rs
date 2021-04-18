@@ -30,6 +30,7 @@ pub enum Token {
     #[regex(r"#.*")]
     Comment,
 
+    // Operators
     #[token("-")]
     Subtract,
 
@@ -86,6 +87,16 @@ pub enum Token {
 
     #[token("T-Dark")]
     TDark,
+
+    // Expressions
+    #[token("if")]
+    If,
+
+    #[token("else")]
+    Else,
+
+    #[token("loop")]
+    Loop,
 
     #[regex(r"[ \t\n\f]+", logos::skip)]
     #[error]
