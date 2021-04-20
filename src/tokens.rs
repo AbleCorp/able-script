@@ -2,6 +2,23 @@ use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq)]
 pub enum Token {
+    // Literals
+    /// True, False
+    #[regex("true|false")]
+    Boolean,
+
+    /// Always, Sometimes, Never
+    #[regex("always|sometimes|never")]
+    Aboolean,
+
+    /// String
+    #[regex("\"(\\.|[^\"])*\"")]
+    String,
+
+    /// Integer
+    #[regex(r"[0-9]+")]
+    Integer,
+
     /// A C-complaint identifier
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
     Identifier,
@@ -30,6 +47,7 @@ pub enum Token {
     #[regex(r"#.*")]
     Comment,
 
+    // Operators
     #[token("-")]
     Subtract,
 
@@ -60,22 +78,6 @@ pub enum Token {
     #[token("var")]
     Variable,
 
-    /// True, False
-    #[regex("true|false")]
-    Boolean,
-
-    /// Always, Sometimes, Never
-    #[regex("always|sometimes|never")]
-    Aboolean,
-
-    /// String
-    #[regex("\"(\\.|[^\"])*\"")]
-    String,
-
-    /// Integer
-    #[regex(r"[0-9]+")]
-    Integer,
-
     /// Prints the preceding things
     #[token("print")]
     Print,
@@ -87,14 +89,17 @@ pub enum Token {
     #[token("T-Dark")]
     TDark,
 
+    // Expressions
+    #[token("if")]
+    If,
+
+    #[token("else")]
+    Else,
+
+    #[token("loop")]
+    Loop,
+
     #[regex(r"[ \t\n\f]+", logos::skip)]
     #[error]
     Error,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Abool {
-    Never = -1,
-    Sometimes = 0,
-    Always = 1,
 }

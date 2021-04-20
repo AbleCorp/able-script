@@ -1,14 +1,15 @@
+#![forbid(unsafe_code)]
+
 mod base_55;
+mod error;
 mod parser;
-mod scanner;
 mod tokens;
 mod variables;
 
 use clap::{App, Arg};
-use scanner::Scanner;
-
+use parser::Parser;
 fn main() {
-    variables::test();
+    // variables::test();
 
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
@@ -29,9 +30,10 @@ fn main() {
             // Read file
             let source = std::fs::read_to_string(file_path).unwrap();
 
-            // Print token type: `value`
-            let mut scanner = Scanner::new(&source);
-            scanner.scan();
+            // Parse
+            let mut parser = Parser::new(&source);
+            let ast = parser.parse();
+            println!("{:#?}", ast);
         }
         None => {
             println!("hi");

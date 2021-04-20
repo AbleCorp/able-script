@@ -1,0 +1,10 @@
+functio test() {
+    functio nested() {
+        var c = false;
+    }
+    var a = true;
+}
+
+functio another() {
+    var b = false;
+}
