@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
             Ok(self.lexer.slice().to_owned())
         } else {
             Err(Error {
-                kind: ErrorKind::SyntaxError,
+                kind: ErrorKind::SyntaxError("Mysterious parse error".to_owned()),
                 position: self.lexer.span(),
             })
         }

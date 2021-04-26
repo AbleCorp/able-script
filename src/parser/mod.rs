@@ -11,6 +11,7 @@ use logos::Logos;
 /// Parser structure / state machine
 pub struct Parser<'a> {
     lexer: logos::Lexer<'a, Token>,
+    ast: Vec<Expr>,
 }
 
 impl<'a> Parser<'a> {
@@ -18,9 +19,33 @@ impl<'a> Parser<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
             lexer: Token::lexer(source),
+            ast: Vec::new(),
         }
     }
 
+    pub fn init(&mut self) -> Result<Vec<Expr>, Error> {
+        loop {
+            let token = self.lexer.next();
+            if token.is_none() {
+                return Ok(self.ast.clone());
+            };
+            let expr = self.parse_expr(&token)?;
+            self.ast.push(expr);
+        }
+    }
+
+    fn parse_expr(&mut self, token: &Option<Token>) -> Result<Expr, Error> {
+        if matches!(token, None) {
+            return Err(Error {
+                kind: ErrorKind::EndOfTokenStream,
+                position: self.lexer.span(),
+            });
+        }
+
+        Ok(todo!())
+    }
+
+    /*
     /// Start parsing Token Vector into Abstract Syntax Tree
     pub fn parse(&mut self) -> Vec<Expr> {
         let mut ast = vec![];
@@ -46,6 +71,7 @@ impl<'a> Parser<'a> {
 
         ast
     }
+    */
 
     /// Parse variable declaration
     ///
@@ -62,7 +88,7 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 return Err(Error {
-                    kind: ErrorKind::SyntaxError,
+                    kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
                     position: self.lexer.span(),
                 })
             }
@@ -80,7 +106,7 @@ impl<'a> Parser<'a> {
         // TODO: Arguments
         self.require(Token::RightParenthesis)?;
         self.require(Token::LeftBrace)?;
-        let body = self.parse();
+        let body = vec![];
 
         Ok(Expr::FunctionDeclaration { iden, body })
     }
@@ -91,7 +117,21 @@ impl<'a> Parser<'a> {
     fn bff_declaration(&mut self) -> Result<Expr, Error> {
         let iden = self.require(Token::Identifier)?;
         self.require(Token::LeftBrace)?;
-        let code = self.require(Token::String)?; // <-- Nasty hack, but works
+        let mut code = String::new();
+        while let Some(token) = self.lexer.next() {
+            code.push_str(match token {
+                Token::OpGt
+                | Token::OpLt
+                | Token::Addition
+                | Token::Subtract
+                | Token::FullStop
+                | Token::Comma
+                | Token::LeftBracket
+                | Token::RightBracket => self.lexer.slice(),
+                Token::RightBrace => break,
+                _ => break,
+            });
+        }
         self.require(Token::RightBrace)?;
         Ok(Expr::BfFDeclaration { iden, code })
     }

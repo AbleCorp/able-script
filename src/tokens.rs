@@ -44,6 +44,12 @@ pub enum Token {
     #[token(";")]
     Semicolon,
 
+    #[token(".")]
+    FullStop,
+
+    #[token(",")]
+    Comma,
+
     #[regex(r"#.*")]
     Comment,
 
@@ -62,6 +68,19 @@ pub enum Token {
 
     #[token("=")]
     Assignment,
+
+    // Logical operators
+    #[token("<")]
+    OpLt,
+
+    #[token(">")]
+    OpGt,
+
+    #[token("==")]
+    OpEq,
+
+    #[token("!=")]
+    OpNeq,
 
     /// Base52 based character ('a')
     #[token("'.*'")]

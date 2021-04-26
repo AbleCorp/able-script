@@ -8,7 +8,8 @@ pub struct Error {
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
-    SyntaxError,
+    SyntaxError(String),
+    EndOfTokenStream,
 }
 
 impl Error {
