@@ -23,13 +23,21 @@ pub fn num2abool(number: i32) -> Abool {
 impl<'a> Parser<'a> {
     /// Require type of token as next and return it's value (sometimes irrelevant)
     pub(super) fn require(&mut self, with: Token) -> Result<String, Error> {
-        if self.lexer.next() == Some(with) {
+        if self.lexer.next() == Some(with.clone()) {
             Ok(self.lexer.slice().to_owned())
         } else {
-            Err(Error {
-                kind: ErrorKind::SyntaxError("Mysterious parse error".to_owned()),
-                position: self.lexer.span(),
-            })
+            Err(self.unexpected_token(Some(with)))
+        }
+    }
+
+    pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
+        Error {
+            kind: ErrorKind::SyntaxError(format!(
+                "Unexpected token: `{}` (required: `{:?}`)",
+                self.lexer.slice(),
+                expected
+            )),
+            position: self.lexer.span(),
         }
     }
 }

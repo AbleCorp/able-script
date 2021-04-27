@@ -3,8 +3,11 @@ mod utils;
 
 use item::Expr;
 
-use crate::error::{Error, ErrorKind};
 use crate::tokens::Token;
+use crate::{
+    error::{Error, ErrorKind},
+    variables::Value,
+};
 
 use logos::Logos;
 
@@ -29,12 +32,13 @@ impl<'a> Parser<'a> {
             if token.is_none() {
                 return Ok(self.ast.clone());
             };
-            let expr = self.parse_expr(&token)?;
+
+            let expr = self.parse_expr(token)?;
             self.ast.push(expr);
         }
     }
 
-    fn parse_expr(&mut self, token: &Option<Token>) -> Result<Expr, Error> {
+    fn parse_expr(&mut self, token: Option<Token>) -> Result<Expr, Error> {
         if matches!(token, None) {
             return Err(Error {
                 kind: ErrorKind::EndOfTokenStream,
@@ -42,36 +46,23 @@ impl<'a> Parser<'a> {
             });
         }
 
-        Ok(todo!())
-    }
+        let token = token.unwrap();
+        let start = self.lexer.span().start;
 
-    /*
-    /// Start parsing Token Vector into Abstract Syntax Tree
-    pub fn parse(&mut self) -> Vec<Expr> {
-        let mut ast = vec![];
-        while let Some(token) = self.lexer.next() {
-            let expr = match token {
-                Token::Variable => self.variable_declaration(),
-                Token::Function => self.function_declaration(),
-                Token::BfFunction => self.bff_declaration(),
-                Token::RightBrace => return ast,
-                _ => Err(Error {
-                    kind: ErrorKind::SyntaxError,
-                    position: 0..0,
-                }),
-            };
-            match expr {
-                Ok(o) => ast.push(o),
-                Err(e) => {
-                    e.panic(self.lexer.slice());
-                    break;
-                }
-            }
+        match token {
+            Token::Variable => self.variable_declaration(),
+            Token::Function => self.function_declaration(),
+            Token::BfFunction => self.bff_declaration(),
+            Token::String(x) => Ok(Expr::Literal(Value::Str(x))),
+            Token::Integer(x) => Ok(Expr::Literal(Value::Int(x))),
+            Token::Boolean(x) => Ok(Expr::Literal(Value::Bool(x))),
+            Token::Aboolean(x) => Ok(Expr::Literal(Value::Abool(x))),
+            _ => Err(Error {
+                kind: ErrorKind::SyntaxError("Unexpected identifier".to_owned()),
+                position: start..self.lexer.span().end,
+            }),
         }
-
-        ast
     }
-    */
 
     /// Parse variable declaration
     ///
@@ -82,9 +73,10 @@ impl<'a> Parser<'a> {
         let init = match self.lexer.next() {
             Some(Token::Semicolon) => None,
             Some(Token::Assignment) => {
-                let value = self.require(Token::Boolean)?; // TODO: Shouldn't be limited to boolean (pattern match?)
+                let value = self.lexer.next();
+                let value = self.parse_expr(value)?; // TODO: Shouldn't be limited to boolean (pattern match?)
                 self.require(Token::Semicolon)?;
-                Some(value)
+                Some(Box::new(value))
             }
             _ => {
                 return Err(Error {
@@ -106,7 +98,9 @@ impl<'a> Parser<'a> {
         // TODO: Arguments
         self.require(Token::RightParenthesis)?;
         self.require(Token::LeftBrace)?;
-        let body = vec![];
+        let expr = self.lexer.next();
+        let expr = self.parse_expr(expr);
+        let body = vec![expr?];
 
         Ok(Expr::FunctionDeclaration { iden, body })
     }
@@ -115,6 +109,7 @@ impl<'a> Parser<'a> {
     ///
     /// `bff [iden] { ... }`
     fn bff_declaration(&mut self) -> Result<Expr, Error> {
+        // TODO: Make it throw error when EOF
         let iden = self.require(Token::Identifier)?;
         self.require(Token::LeftBrace)?;
         let mut code = String::new();
@@ -129,10 +124,9 @@ impl<'a> Parser<'a> {
                 | Token::LeftBracket
                 | Token::RightBracket => self.lexer.slice(),
                 Token::RightBrace => break,
-                _ => break,
+                _ => return Err(self.unexpected_token(None)),
             });
         }
-        self.require(Token::RightBrace)?;
         Ok(Expr::BfFDeclaration { iden, code })
     }
 }

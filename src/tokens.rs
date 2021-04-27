@@ -1,23 +1,25 @@
-use logos::Logos;
+use logos::{Lexer, Logos};
 
-#[derive(Logos, Debug, PartialEq)]
+use crate::variables::Abool;
+
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
     // Literals
     /// True, False
-    #[regex("true|false")]
-    Boolean,
+    #[regex("true|false", get_bool)]
+    Boolean(bool),
 
     /// Always, Sometimes, Never
-    #[regex("always|sometimes|never")]
-    Aboolean,
+    #[regex("always|sometimes|never", get_abool)]
+    Aboolean(Abool),
 
     /// String
-    #[regex("\"(\\.|[^\"])*\"")]
-    String,
+    #[regex("\"(\\.|[^\"])*\"", get_string)]
+    String(String),
 
     /// Integer
-    #[regex(r"[0-9]+")]
-    Integer,
+    #[regex(r"[0-9]+", get_int)]
+    Integer(i32),
 
     /// A C-complaint identifier
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
@@ -121,4 +123,25 @@ pub enum Token {
     #[regex(r"[ \t\n\f]+", logos::skip)]
     #[error]
     Error,
+}
+
+fn get_bool(lexer: &mut Lexer<Token>) -> Option<bool> {
+    lexer.slice().parse().ok()
+}
+
+fn get_int(lexer: &mut Lexer<Token>) -> Option<i32> {
+    lexer.slice().parse().ok()
+}
+
+fn get_string(lexer: &mut Lexer<Token>) -> String {
+    lexer.slice().to_owned()
+}
+
+fn get_abool(lexer: &mut Lexer<Token>) -> Option<Abool> {
+    match lexer.slice() {
+        "always" => Some(Abool::Always),
+        "sometimes" => Some(Abool::Sometimes),
+        "never" => Some(Abool::Never),
+        _ => None,
+    }
 }
