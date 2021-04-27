@@ -126,7 +126,8 @@ pub fn num2char(number: i32) -> char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn str_to_base55() {
+    #[test]
+    fn str_to_base55() {
         let chrs: Vec<i32> = "AbleScript".chars().map(char2num).collect();
         assert_eq!(chrs, &[-1, 2, 12, 5, -19, 3, 18, 9, 16, 20]);
     }

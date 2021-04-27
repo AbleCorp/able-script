@@ -4,6 +4,38 @@ use crate::variables::Abool;
 
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
+    #[token("functio")]
+    Function,
+
+    /// Brain fuck FFI
+    #[token("bff")]
+    BfFunction,
+
+    /// Variable bro
+    #[token("var")]
+    Variable,
+
+    /// Prints the preceding things
+    #[token("print")]
+    Print,
+
+    /// Ban the following variable from ever being used again
+    #[token("melo")]
+    Melo,
+
+    #[token("T-Dark")]
+    TDark,
+
+    // Expressions
+    #[token("if")]
+    If,
+
+    #[token("else")]
+    Else,
+
+    #[token("loop")]
+    Loop,
+
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
@@ -87,38 +119,6 @@ pub enum Token {
     /// Base52 based character ('a')
     #[token("'.*'")]
     Char,
-
-    #[token("functio")]
-    Function,
-
-    /// Brain fuck FFI
-    #[token("bff")]
-    BfFunction,
-
-    /// Variable bro
-    #[token("var")]
-    Variable,
-
-    /// Prints the preceding things
-    #[token("print")]
-    Print,
-
-    /// Ban the following variable from ever being used again
-    #[token("melo")]
-    Melo,
-
-    #[token("T-Dark")]
-    TDark,
-
-    // Expressions
-    #[token("if")]
-    If,
-
-    #[token("else")]
-    Else,
-
-    #[token("loop")]
-    Loop,
 
     #[regex(r"[ \t\n\f]+", logos::skip)]
     #[error]

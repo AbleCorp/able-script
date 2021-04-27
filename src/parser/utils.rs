@@ -2,7 +2,7 @@ use crate::error::{Error, ErrorKind};
 use crate::tokens::Token;
 use crate::variables::Abool;
 
-use super::Parser;
+use super::{item::Expr, Parser};
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {
@@ -50,5 +50,28 @@ impl<'a> Parser<'a> {
             )),
             position: self.lexer.span(),
         }
+    }
+
+    pub(super) fn parse_body(&mut self) -> Result<Vec<Expr>, Error> {
+        let mut body = Vec::new();
+        loop {
+            let token = {
+                match self.lexer.next() {
+                    Some(t) => t,
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::EndOfTokenStream,
+                            position: self.lexer.span(),
+                        })
+                    }
+                }
+            };
+
+            if token == Token::RightBrace {
+                break;
+            }
+            body.push(self.parse_expr(Some(token))?);
+        }
+        Ok(body)
     }
 }

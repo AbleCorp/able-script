@@ -3,11 +3,11 @@ mod utils;
 
 use item::Expr;
 
-use crate::tokens::Token;
 use crate::{
     error::{Error, ErrorKind},
     variables::Value,
 };
+use crate::{parser::item::Iden, tokens::Token};
 
 use logos::Logos;
 
@@ -50,13 +50,28 @@ impl<'a> Parser<'a> {
         let start = self.lexer.span().start;
 
         match token {
+            // Control flow
+            Token::If => self.if_cond(),
+
+            // Declarations
             Token::Variable => self.variable_declaration(),
             Token::Function => self.function_declaration(),
             Token::BfFunction => self.bff_declaration(),
+
+            // Literals
             Token::String(x) => Ok(Expr::Literal(Value::Str(x))),
             Token::Integer(x) => Ok(Expr::Literal(Value::Int(x))),
             Token::Boolean(x) => Ok(Expr::Literal(Value::Bool(x))),
             Token::Aboolean(x) => Ok(Expr::Literal(Value::Abool(x))),
+
+            // Prefix keywords
+            // Melo - ban variable from next usage (runtime error)
+            Token::Melo => {
+                let e = self.require_iden()?;
+                self.require(Token::Semicolon)?;
+                Ok(Expr::Melo(Iden(e)))
+            }
+
             _ => Err(Error {
                 kind: ErrorKind::SyntaxError("Unexpected identifier".to_owned()),
                 position: start..self.lexer.span().end,
@@ -99,25 +114,7 @@ impl<'a> Parser<'a> {
 
         self.require(Token::LeftBrace)?;
         // Parse function body
-        let mut body = Vec::new();
-        loop {
-            let token = {
-                match self.lexer.next() {
-                    Some(t) => t,
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::EndOfTokenStream,
-                            position: self.lexer.span(),
-                        })
-                    }
-                }
-            };
-
-            if token == Token::RightBrace {
-                break;
-            }
-            body.push(self.parse_expr(Some(token))?);
-        }
+        let body = self.parse_body()?;
 
         Ok(Expr::FunctionDeclaration { iden, body })
     }
@@ -160,5 +157,22 @@ impl<'a> Parser<'a> {
             });
         }
         Ok(Expr::BfFDeclaration { iden, body })
+    }
+
+    /// Parse If-expression
+    pub fn if_cond(&mut self) -> Result<Expr, Error> {
+        self.require(Token::LeftParenthesis)?;
+        let cond = self.lexer.next();
+        let cond = self.parse_expr(cond)?;
+        self.require(Token::RightParenthesis)?;
+
+        self.require(Token::LeftBrace)?;
+
+        let body = self.parse_body()?;
+
+        Ok(Expr::If {
+            cond: Box::new(cond),
+            body,
+        })
     }
 }
