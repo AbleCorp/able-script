@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             Some(Token::Semicolon) => None,
             Some(Token::Assignment) => {
                 let value = self.lexer.next();
-                let value = self.parse_expr(value)?; // TODO: Shouldn't be limited to boolean (pattern match?)
+                let value = self.parse_expr(value)?;
                 self.require(Token::Semicolon)?;
                 Some(Box::new(value))
             }
@@ -95,12 +95,15 @@ impl<'a> Parser<'a> {
     fn function_declaration(&mut self) -> Result<Expr, Error> {
         let iden = self.require_iden()?;
         self.require(Token::LeftParenthesis)?;
-        // TODO: Arguments
         self.require(Token::RightParenthesis)?;
+
         self.require(Token::LeftBrace)?;
-        let expr = self.lexer.next();
-        let expr = self.parse_expr(expr);
-        let body = vec![expr?];
+        // Parse function body
+        let mut body = Vec::new();
+        while let Some(token) = self.lexer.next() {
+            if token == Token::RightBrace { break }
+            body.push(self.parse_expr(Some(token))?);
+        }
 
         Ok(Expr::FunctionDeclaration { iden, body })
     }

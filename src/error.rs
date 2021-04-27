@@ -12,10 +12,3 @@ pub enum ErrorKind {
     EndOfTokenStream,
     InvalidIdentifier,
 }
-
-impl Error {
-    pub fn panic(&self, span: &str) {
-        println!("{:?} occured at {:?}", self.kind, self.position);
-        println!("    {}", &span);
-    }
-}
