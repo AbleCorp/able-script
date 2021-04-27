@@ -22,8 +22,8 @@ pub enum Token {
     Integer(i32),
 
     /// A C-complaint identifier
-    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
-    Identifier,
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
+    Identifier(String),
 
     #[token("(")]
     LeftParenthesis,
@@ -134,7 +134,7 @@ fn get_int(lexer: &mut Lexer<Token>) -> Option<i32> {
 }
 
 fn get_string(lexer: &mut Lexer<Token>) -> String {
-    lexer.slice().to_owned()
+    lexer.slice().trim_matches('"').to_owned()
 }
 
 fn get_abool(lexer: &mut Lexer<Token>) -> Option<Abool> {
@@ -143,5 +143,45 @@ fn get_abool(lexer: &mut Lexer<Token>) -> Option<Abool> {
         "sometimes" => Some(Abool::Sometimes),
         "never" => Some(Abool::Never),
         _ => None,
+    }
+}
+
+fn get_iden(lexer: &mut Lexer<Token>) -> String {
+    lexer.slice().to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Token;
+    use super::Token::*;
+    use logos::Logos;
+
+    #[test]
+    fn simple_fn() {
+        let code = "functio test() { var a = 3; if a == 3 { a print } }";
+        let expected = &[
+            Function,
+            Identifier("test".to_owned()),
+            LeftParenthesis,
+            RightParenthesis,
+            LeftBrace,
+            Variable,
+            Identifier("a".to_owned()),
+            Assignment,
+            Integer(3),
+            Semicolon,
+            If,
+            Identifier("a".to_owned()),
+            OpEq,
+            Integer(3),
+            LeftBrace,
+            Identifier("a".to_owned()),
+            Print,
+            RightBrace,
+            RightBrace,
+        ];
+        let lexer = Token::lexer(code);
+        let result: Vec<Token> = lexer.collect();
+        assert_eq!(result, expected);
     }
 }

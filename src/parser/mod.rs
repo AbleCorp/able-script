@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
     ///
     /// `var [iden] = [literal];`
     fn variable_declaration(&mut self) -> Result<Expr, Error> {
-        let iden = self.require(Token::Identifier)?;
+        let iden = self.require_iden()?;
 
         let init = match self.lexer.next() {
             Some(Token::Semicolon) => None,
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
     ///
     /// `functio [iden] ([expr], [expr]) { ... }
     fn function_declaration(&mut self) -> Result<Expr, Error> {
-        let iden = self.require(Token::Identifier)?;
+        let iden = self.require_iden()?;
         self.require(Token::LeftParenthesis)?;
         // TODO: Arguments
         self.require(Token::RightParenthesis)?;
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
     /// `bff [iden] { ... }`
     fn bff_declaration(&mut self) -> Result<Expr, Error> {
         // TODO: Make it throw error when EOF
-        let iden = self.require(Token::Identifier)?;
+        let iden = self.require_iden()?;
         self.require(Token::LeftBrace)?;
         let mut code = String::new();
         while let Some(token) = self.lexer.next() {

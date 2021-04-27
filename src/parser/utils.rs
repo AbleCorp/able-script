@@ -30,6 +30,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub(super) fn require_iden(&mut self) -> Result<String, Error> {
+        if let Some(Token::Identifier(id)) = self.lexer.next() {
+            Ok(id)
+        } else {
+            Err(Error {
+                kind: ErrorKind::InvalidIdentifier,
+                position: self.lexer.span(),
+            })
+        }
+    }
+
     pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
         Error {
             kind: ErrorKind::SyntaxError(format!(

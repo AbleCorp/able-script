@@ -10,6 +10,7 @@ pub struct Error {
 pub enum ErrorKind {
     SyntaxError(String),
     EndOfTokenStream,
+    InvalidIdentifier,
 }
 
 impl Error {
