@@ -32,7 +32,7 @@ fn main() {
 
             // Parse
             let mut parser = Parser::new(&source);
-            let ast = parser.parse();
+            let ast = parser.init();
             println!("{:#?}", ast);
         }
         None => {
