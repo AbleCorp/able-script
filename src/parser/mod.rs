@@ -100,8 +100,22 @@ impl<'a> Parser<'a> {
         self.require(Token::LeftBrace)?;
         // Parse function body
         let mut body = Vec::new();
-        while let Some(token) = self.lexer.next() {
-            if token == Token::RightBrace { break }
+        loop {
+            let token = {
+                match self.lexer.next() {
+                    Some(t) => t,
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::EndOfTokenStream,
+                            position: self.lexer.span(),
+                        })
+                    }
+                }
+            };
+
+            if token == Token::RightBrace {
+                break;
+            }
             body.push(self.parse_expr(Some(token))?);
         }
 
@@ -112,12 +126,27 @@ impl<'a> Parser<'a> {
     ///
     /// `bff [iden] { ... }`
     fn bff_declaration(&mut self) -> Result<Expr, Error> {
-        // TODO: Make it throw error when EOF
         let iden = self.require_iden()?;
         self.require(Token::LeftBrace)?;
-        let mut code = String::new();
-        while let Some(token) = self.lexer.next() {
-            code.push_str(match token {
+
+        let mut body = String::new();
+        loop {
+            let token = {
+                match self.lexer.next() {
+                    Some(t) => t,
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::EndOfTokenStream,
+                            position: self.lexer.span(),
+                        })
+                    }
+                }
+            };
+
+            if token == Token::RightBrace {
+                break;
+            }
+            body.push_str(match token {
                 Token::OpGt
                 | Token::OpLt
                 | Token::Addition
@@ -130,6 +159,6 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.unexpected_token(None)),
             });
         }
-        Ok(Expr::BfFDeclaration { iden, code })
+        Ok(Expr::BfFDeclaration { iden, body })
     }
 }

@@ -12,7 +12,7 @@ pub enum Expr {
     },
     BfFDeclaration {
         iden: String,
-        code: String,
+        body: String,
     },
     Literal(Value),
 }
