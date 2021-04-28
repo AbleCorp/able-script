@@ -1,19 +1,19 @@
 mod item;
+mod ops;
 mod utils;
 
 use item::Expr;
 
 use crate::{
     error::{Error, ErrorKind},
+    lexer::PeekableLexer,
     variables::Value,
 };
-use crate::{parser::item::Iden, tokens::Token};
-
-use logos::Logos;
+use crate::{lexer::Token, parser::item::Iden};
 
 /// Parser structure / state machine
 pub struct Parser<'a> {
-    lexer: logos::Lexer<'a, Token>,
+    lexer: PeekableLexer<'a>,
     ast: Vec<Expr>,
 }
 
@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     /// Create a new parser object
     pub fn new(source: &'a str) -> Self {
         Self {
-            lexer: Token::lexer(source),
+            lexer: PeekableLexer::lexer(source),
             ast: Vec::new(),
         }
     }
@@ -50,6 +50,7 @@ impl<'a> Parser<'a> {
         let start = self.lexer.span().start;
 
         match token {
+            Token::Identifier(_) => self.parse_ops(token),
             // Control flow
             Token::If => self.if_cond(),
 
@@ -110,13 +111,14 @@ impl<'a> Parser<'a> {
     fn function_declaration(&mut self) -> Result<Expr, Error> {
         let iden = self.require_iden()?;
         self.require(Token::LeftParenthesis)?;
+        let args = vec![];
         self.require(Token::RightParenthesis)?;
 
         self.require(Token::LeftBrace)?;
         // Parse function body
         let body = self.parse_body()?;
 
-        Ok(Expr::FunctionDeclaration { iden, body })
+        Ok(Expr::FunctionDeclaration { iden, args, body })
     }
 
     /// Declare BF FFI Function

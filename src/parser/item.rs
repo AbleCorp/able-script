@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::variables::Value;
 
 #[derive(Debug, Clone)]
@@ -11,6 +13,7 @@ pub enum Expr {
     },
     FunctionDeclaration {
         iden: String,
+        args: Vec<Iden>,
         body: Vec<Expr>,
     },
     BfFDeclaration {
@@ -22,6 +25,10 @@ pub enum Expr {
         body: Vec<Expr>,
     },
 
+    FunctionCall {
+        iden: Iden,
+        args: HashMap<Iden, Value>,
+    },
     Literal(Value),
     Melo(Iden),
 }

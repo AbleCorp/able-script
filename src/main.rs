@@ -2,8 +2,8 @@
 
 mod base_55;
 mod error;
+mod lexer;
 mod parser;
-mod tokens;
 mod variables;
 
 use clap::{App, Arg};

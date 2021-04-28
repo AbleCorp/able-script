@@ -1,5 +1,5 @@
 use crate::error::{Error, ErrorKind};
-use crate::tokens::Token;
+use crate::lexer::Token;
 use crate::variables::Abool;
 
 use super::{item::Expr, Parser};
