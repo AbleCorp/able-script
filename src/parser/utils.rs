@@ -42,12 +42,16 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
-        Error {
-            kind: ErrorKind::SyntaxError(format!(
+        let error_msg = match expected {
+            Some(s) => format!(
                 "Unexpected token: `{}` (required: `{:?}`)",
                 self.lexer.slice(),
-                expected
-            )),
+                s
+            ),
+            None => format!("Unexpected token: `{}`)", self.lexer.slice(),),
+        };
+        Error {
+            kind: ErrorKind::SyntaxError(error_msg),
             position: self.lexer.span(),
         }
     }

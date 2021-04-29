@@ -53,7 +53,10 @@ impl<'source> Iterator for PeekableLexer<'source> {
     /// again may or may not eventually start returning [`Some(Item)`] again at some point.
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.lexer.next()
+        match self.peeked.take() {
+            Some(v) => v,
+            None => self.lexer.next(),
+        }
     }
 }
 

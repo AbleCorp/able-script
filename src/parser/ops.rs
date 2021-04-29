@@ -21,6 +21,7 @@ impl<'a> Parser<'a> {
     }
 
     fn fn_call(&mut self, iden: Iden) -> Result<Expr, Error> {
+        self.lexer.next();
         self.require(Token::RightParenthesis)?;
         Ok(Expr::FunctionCall {
             iden,
