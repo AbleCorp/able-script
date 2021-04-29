@@ -22,10 +22,25 @@ impl<'a> Parser<'a> {
 
     fn fn_call(&mut self, iden: Iden) -> Result<Expr, Error> {
         self.lexer.next();
+        let mut args: Vec<Expr> = Vec::new();
+        while let Some(token) = self.lexer.peek() {
+            match token {
+                Token::Identifier(id) => {
+                    args.push(Iden(id.clone()).into());
+                    self.lexer.next();
+                }
+                Token::RightParenthesis => break,
+                _ => {
+                    let next = self.lexer.next();
+                    args.push(self.parse_expr(next)?)
+                }
+            }
+            self.require(Token::Comma)?;
+        }
         self.require(Token::RightParenthesis)?;
         Ok(Expr::FunctionCall {
             iden,
-            args: HashMap::new(),
+            args, 
         })
     }
 }

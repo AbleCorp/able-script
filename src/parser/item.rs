@@ -2,8 +2,14 @@ use std::collections::HashMap;
 
 use crate::variables::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Iden(pub String);
+
+impl From<Iden> for Expr {
+    fn from(iden: Iden) -> Self {
+        Self::Identifier(iden)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -27,8 +33,9 @@ pub enum Expr {
 
     FunctionCall {
         iden: Iden,
-        args: HashMap<Iden, Value>,
+        args: Vec<Expr>,
     },
     Literal(Value),
+    Identifier(Iden),
     Melo(Iden),
 }

@@ -142,9 +142,6 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            if token == Token::RightBrace {
-                break;
-            }
             body.push_str(match token {
                 Token::OpGt
                 | Token::OpLt

@@ -23,6 +23,7 @@ pub enum Value {
     Int(i32),
     Bool(bool),
     Abool(Abool),
+    Nul,
 }
 
 #[derive(Debug)]
