@@ -30,6 +30,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Require an identifier on next and return it
     pub(super) fn require_iden(&mut self) -> Result<String, Error> {
         if let Some(Token::Identifier(id)) = self.lexer.next() {
             Ok(id)
@@ -41,6 +42,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Throw unexpected token error (optionally what was expected)
     pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
         let error_msg = match expected {
             Some(s) => format!(

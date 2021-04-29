@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use super::*;
 
 impl<'a> Parser<'a> {
+    /// Parse operations (got identifier/value)
     pub(super) fn parse_ops(&mut self, token: Token) -> Result<Expr, Error> {
         let iden = if let Token::Identifier(i) = token {
             Iden(i)
@@ -20,9 +19,11 @@ impl<'a> Parser<'a> {
         Ok(buf[0].clone())
     }
 
+    /// Parse function call
     fn fn_call(&mut self, iden: Iden) -> Result<Expr, Error> {
         self.lexer.next();
         let mut args: Vec<Expr> = Vec::new();
+
         while let Some(token) = self.lexer.peek() {
             match token {
                 Token::Identifier(id) => {
@@ -38,9 +39,6 @@ impl<'a> Parser<'a> {
             self.require(Token::Comma)?;
         }
         self.require(Token::RightParenthesis)?;
-        Ok(Expr::FunctionCall {
-            iden,
-            args, 
-        })
+        Ok(Expr::FunctionCall { iden, args })
     }
 }

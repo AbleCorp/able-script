@@ -35,6 +35,12 @@ pub enum Expr {
         iden: Iden,
         args: Vec<Expr>,
     },
+
+    Addition {
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+
     Literal(Value),
     Identifier(Iden),
     Melo(Iden),
