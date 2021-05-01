@@ -2,7 +2,7 @@ use crate::error::{Error, ErrorKind};
 use crate::lexer::Token;
 use crate::variables::Abool;
 
-use super::{item::Expr, Parser};
+use super::{Parser, item::{Iden, Item}};
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {
@@ -31,13 +31,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Require an identifier on next and return it
-    pub(super) fn require_iden(&mut self) -> Result<String, Error> {
+    pub(super) fn require_iden(&mut self) -> Result<Iden, Error> {
         if let Some(Token::Identifier(id)) = self.lexer.next() {
-            Ok(id)
+            Ok(Iden(id))
         } else {
             Err(Error {
                 kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(),
+                position: self.lexer.span(), 
             })
         }
     }
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(super) fn parse_body(&mut self) -> Result<Vec<Expr>, Error> {
+    pub(super) fn parse_body(&mut self) -> Result<Vec<Item>, Error> {
         let mut body = Vec::new();
         loop {
             let token = {
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
             if token == Token::RightBrace {
                 break;
             }
-            body.push(self.parse_expr(Some(token))?);
+            body.push(self.parse_item(Some(token))?);
         }
         Ok(body)
     }

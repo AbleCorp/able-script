@@ -4,6 +4,7 @@ mod base_55;
 mod error;
 mod lexer;
 mod parser;
+mod repl;
 mod variables;
 
 use clap::{App, Arg};
@@ -14,7 +15,7 @@ fn main() {
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Able <abl3theabove@gmail.com>")
-        .about("Does awesome things")
+        .about("AbleScript interpreter")
         .arg(
             Arg::with_name("file")
                 .short("f")
@@ -36,8 +37,8 @@ fn main() {
             println!("{:#?}", ast);
         }
         None => {
-            println!("hi");
-            //start the prompt
+            println!("Hi [AbleScript {}] - AST Printer", env!("CARGO_PKG_VERSION"));
+            repl::repl();
         }
     }
 }
