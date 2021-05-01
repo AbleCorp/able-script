@@ -2,7 +2,10 @@ use crate::error::{Error, ErrorKind};
 use crate::lexer::Token;
 use crate::variables::Abool;
 
-use super::{Parser, item::{Iden, Item}};
+use super::{
+    item::{Iden, Item},
+    Parser,
+};
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {
@@ -37,7 +40,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(Error {
                 kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(), 
+                position: self.lexer.span(),
             })
         }
     }
@@ -50,7 +53,7 @@ impl<'a> Parser<'a> {
                 self.lexer.slice(),
                 s
             ),
-            None => format!("Unexpected token: `{}`)", self.lexer.slice(),),
+            None => format!("Unexpected token: `{}`", self.lexer.slice(),),
         };
         Error {
             kind: ErrorKind::SyntaxError(error_msg),

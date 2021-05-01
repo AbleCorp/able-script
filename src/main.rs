@@ -37,7 +37,10 @@ fn main() {
             println!("{:#?}", ast);
         }
         None => {
-            println!("Hi [AbleScript {}] - AST Printer", env!("CARGO_PKG_VERSION"));
+            println!(
+                "Hi [AbleScript {}] - AST Printer",
+                env!("CARGO_PKG_VERSION")
+            );
             repl::repl();
         }
     }

@@ -53,7 +53,11 @@ impl<'a> Parser<'a> {
         let start = self.lexer.span().start;
 
         match token {
-            Token::Identifier(_) => self.parse_ops(token).map(|x| x.into()),
+            Token::Identifier(_)
+            | Token::Aboolean(_)
+            | Token::Boolean(_)
+            | Token::Integer(_)
+            | Token::String(_) => self.parse_ops(token),
             // Control flow
             Token::If => self.if_cond(),
 
@@ -61,12 +65,6 @@ impl<'a> Parser<'a> {
             Token::Variable => self.variable_declaration(),
             Token::Function => self.function_declaration(),
             Token::BfFunction => self.bff_declaration(),
-
-            // Literals
-            Token::String(x) => Ok(Expr::Literal(Value::Str(x)).into()),
-            Token::Integer(x) => Ok(Expr::Literal(Value::Int(x)).into()),
-            Token::Boolean(x) => Ok(Expr::Literal(Value::Bool(x)).into()),
-            Token::Aboolean(x) => Ok(Expr::Literal(Value::Abool(x)).into()),
 
             // Prefix keywords
             // Melo - ban variable from next usage (runtime error)
