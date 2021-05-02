@@ -72,9 +72,17 @@ impl<'a> Parser<'a> {
         match token {
             Token::Boolean(b) => Ok(Expr::Literal(Value::Bool(b))),
             Token::Integer(i) => Ok(Expr::Literal(Value::Int(i))),
-            Token::String(s) => Ok(Expr::Literal(Value::Str(s))),
+            Token::String(s) => Ok(Expr::Literal(Value::Str(if self.tdark {
+                s.replace("lang", "script")
+            } else {
+                s
+            }))),
             Token::Aboolean(a) => Ok(Expr::Literal(Value::Abool(a))),
-            Token::Identifier(i) => Ok(Expr::Identifier(Iden(i))),
+            Token::Identifier(i) => Ok(Expr::Identifier(Iden(if self.tdark {
+                i.replace("lang", "script")
+            } else {
+                i
+            }))),
             Token::LogNot => {
                 let next = self.lexer.next();
                 Ok(Expr::Not(Box::new(self.parse_expr(next)?)))

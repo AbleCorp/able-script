@@ -36,7 +36,11 @@ impl<'a> Parser<'a> {
     /// Require an identifier on next and return it
     pub(super) fn require_iden(&mut self) -> Result<Iden, Error> {
         if let Some(Token::Identifier(id)) = self.lexer.next() {
-            Ok(Iden(id))
+            if self.tdark {
+                Ok(Iden(id.replace("lang", "script")))
+            } else {
+                Ok(Iden(id))
+            }
         } else {
             Err(Error {
                 kind: ErrorKind::InvalidIdentifier,

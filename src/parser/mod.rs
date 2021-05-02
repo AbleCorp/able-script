@@ -18,6 +18,7 @@ pub type ParseResult = Result<Item, Error>;
 pub struct Parser<'a> {
     lexer: PeekableLexer<'a>,
     ast: Vec<Item>,
+    tdark: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -26,20 +27,26 @@ impl<'a> Parser<'a> {
         Self {
             lexer: PeekableLexer::lexer(source),
             ast: Vec::new(),
+            tdark: false,
         }
     }
 
     pub fn init(&mut self) -> Result<Vec<Item>, Error> {
         loop {
             let token = self.lexer.next();
-            if token.is_none() {
-                return Ok(self.ast.clone());
-            };
-            if matches!(token, Some(Token::Comment)) {
-                continue;
+
+            match token {
+                Some(Token::Comment) => continue,
+                Some(Token::TDark) => {
+                    let mut block = self.tdark_block()?;
+                    self.ast.append(&mut block);
+                }
+                None => return Ok(self.ast.clone()),
+                _ => {
+                    let item = self.parse_item(token)?;
+                    self.ast.push(item);
+                }
             }
-            let item = self.parse_item(token)?;
-            self.ast.push(item);
         }
     }
 
@@ -169,7 +176,7 @@ impl<'a> Parser<'a> {
         Ok(Stmt::BfFDeclaration { iden, body }.into())
     }
 
-    /// Parse If-expression
+    /// Parse If-stmt
     pub fn if_cond(&mut self) -> ParseResult {
         self.require(Token::LeftParenthesis)?;
         let cond = self.lexer.next();
@@ -185,5 +192,32 @@ impl<'a> Parser<'a> {
             body,
         }
         .into())
+    }
+
+    /// T-Dark block parsing
+    pub fn tdark_block(&mut self) -> Result<Vec<Item>, Error> {
+        self.require(Token::LeftBrace)?;
+        self.tdark = true;
+        let mut body = Vec::new();
+        loop {
+            let token = {
+                match self.lexer.next() {
+                    Some(t) => t,
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::EndOfTokenStream,
+                            position: self.lexer.span(),
+                        })
+                    }
+                }
+            };
+
+            if token == Token::RightBrace {
+                break;
+            }
+            body.push(self.parse_item(Some(token))?);
+        }
+        self.tdark = false;
+        Ok(body)
     }
 }
