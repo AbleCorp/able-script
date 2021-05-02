@@ -35,9 +35,11 @@ impl<'a> Parser<'a> {
             if token.is_none() {
                 return Ok(self.ast.clone());
             };
-
-            let expr = self.parse_item(token)?;
-            self.ast.push(expr);
+            if matches!(token, Some(Token::Comment)) {
+                continue;
+            }
+            let item = self.parse_item(token)?;
+            self.ast.push(item);
         }
     }
 
@@ -112,9 +114,15 @@ impl<'a> Parser<'a> {
     fn function_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
         self.require(Token::LeftParenthesis)?;
-        let args = vec![];
-        self.require(Token::RightParenthesis)?;
-
+        let mut args = vec![];
+        loop {
+            let next = self.lexer.next();
+            match next {
+                Some(Token::RightParenthesis) => break,
+                Some(Token::Identifier(i)) => args.push(Iden(i)),
+                _ => return Err(self.unexpected_token(None)),
+            }
+        }
         self.require(Token::LeftBrace)?;
         // Parse function body
         let body = self.parse_body()?;

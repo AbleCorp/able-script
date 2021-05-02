@@ -1,3 +1,4 @@
+use logos::Source;
 use rustyline::Editor;
 
 use crate::parser::Parser;
@@ -14,7 +15,17 @@ pub fn repl() {
                 }
                 let mut parser = Parser::new(&line);
                 let ast = parser.init();
-                println!("{:#?}", ast);
+                match ast {
+                    Ok(ast) => println!("{:?}", ast),
+                    Err(e) => {
+                        println!(
+                            "Error `{:?}` occured at span: {:?} = `{:?}`",
+                            e.kind,
+                            e.position.clone(),
+                            line.slice(e.position)
+                        );
+                    }
+                }
             }
             Err(rustyline::error::ReadlineError::Eof) => {
                 println!("bye");

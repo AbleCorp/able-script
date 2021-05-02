@@ -8,6 +8,7 @@ mod repl;
 mod variables;
 
 use clap::{App, Arg};
+use logos::Source;
 use parser::Parser;
 fn main() {
     // variables::test();
@@ -34,7 +35,17 @@ fn main() {
             // Parse
             let mut parser = Parser::new(&source);
             let ast = parser.init();
-            println!("{:#?}", ast);
+            match ast {
+                Ok(ast) => println!("{:#?}", ast),
+                Err(e) => {
+                    println!(
+                        "Error `{:?}` occured at span: {:?} = `{:?}`",
+                        e.kind,
+                        e.position.clone(),
+                        source.slice(e.position)
+                    );
+                }
+            }
         }
         None => {
             println!(

@@ -27,7 +27,6 @@ pub enum Expr {
     Subtract { left: Box<Expr>, right: Box<Expr> },
     Multiply { left: Box<Expr>, right: Box<Expr> },
     Divide { left: Box<Expr>, right: Box<Expr> },
-    FunctionCall { iden: Iden, args: Vec<Expr> },
     Literal(Value),
     Identifier(Iden),
 }
@@ -56,6 +55,10 @@ pub enum Stmt {
         cond: Box<Item>,
         body: Vec<Item>,
     },
-
+    FunctionCall {
+        iden: Iden,
+        args: Vec<Expr>,
+    },
+    Print(Expr),
     Melo(Iden),
 }
