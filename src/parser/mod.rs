@@ -67,10 +67,21 @@ impl<'a> Parser<'a> {
             | Token::Boolean(_)
             | Token::Integer(_)
             | Token::String(_)
+            | Token::Nul
             | Token::LogNot => self.parse_ops(token),
 
             // Control flow
             Token::If => self.if_cond(),
+            Token::Loop => self.loop_block(),
+
+            Token::HopBack => {
+                self.require(Token::Semicolon)?;
+                Ok(Stmt::HopBack.into())
+            }
+            Token::Break => {
+                self.require(Token::Semicolon)?;
+                Ok(Stmt::Break.into())
+            }
 
             // Declarations
             Token::Variable => self.variable_declaration(),
@@ -194,6 +205,14 @@ impl<'a> Parser<'a> {
         .into())
     }
 
+    /// Parse loop
+    pub fn loop_block(&mut self) -> ParseResult {
+        self.require(Token::LeftBrace)?;
+        let body = self.parse_body()?;
+
+        Ok(Stmt::Loop { body }.into())
+    }
+
     /// T-Dark block parsing
     pub fn tdark_block(&mut self) -> Result<Vec<Item>, Error> {
         self.require(Token::LeftBrace)?;
@@ -219,5 +238,64 @@ impl<'a> Parser<'a> {
         }
         self.tdark = false;
         Ok(body)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use Expr::*;
+    use Stmt::*;
+
+    #[test]
+    fn control_flow() {
+        let code = r#"loop { var a = 3 + 2; if (a == 5) { break; } }"#;
+
+        let expected: &[Item] = &[Item::Stmt(Loop {
+            body: vec![
+                VariableDeclaration {
+                    iden: Iden("a".to_owned()),
+                    init: Some(Box::new(
+                        Add {
+                            left: Box::new(Literal(Value::Int(3))),
+                            right: Box::new(Literal(Value::Int(2))),
+                        }
+                        .into(),
+                    )),
+                }
+                .into(),
+                If {
+                    cond: Box::new(
+                        Eq {
+                            left: Box::new(Iden("a".to_owned()).into()),
+                            right: Box::new(Literal(Value::Int(5)).into()),
+                        }
+                        .into(),
+                    ),
+                    body: vec![Break.into()],
+                }
+                .into(),
+            ],
+        })];
+        let ast = Parser::new(code).init().unwrap();
+
+        assert_eq!(ast, expected)
+    }
+
+    #[test]
+    fn tdark() {
+        let code = r#"T-Dark { var lang = nul; lang print; }"#;
+        let expected: &[Item] = &[
+            VariableDeclaration {
+                iden: Iden("script".to_owned()),
+                init: Some(Box::new(Literal(Value::Nul).into())),
+            }
+            .into(),
+            Print(Iden("script".to_owned()).into()).into(),
+        ];
+
+        let ast = Parser::new(code).init().unwrap();
+
+        assert_eq!(ast, expected)
     }
 }

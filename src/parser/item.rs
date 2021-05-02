@@ -3,7 +3,7 @@ use crate::variables::Value;
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Iden(pub String);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item {
     Expr(Expr),
     Stmt(Stmt),
@@ -15,13 +15,19 @@ impl From<Expr> for Item {
     }
 }
 
+impl From<Iden> for Item {
+    fn from(i: Iden) -> Self {
+        Item::Expr(Expr::Identifier(i))
+    }
+}
+
 impl From<Stmt> for Item {
     fn from(s: Stmt) -> Self {
         Item::Stmt(s)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Add { left: Box<Expr>, right: Box<Expr> },
     Subtract { left: Box<Expr>, right: Box<Expr> },
@@ -43,7 +49,7 @@ impl From<Iden> for Expr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     VariableDeclaration {
         iden: Iden,
@@ -66,6 +72,11 @@ pub enum Stmt {
         iden: Iden,
         args: Vec<Expr>,
     },
+    Loop {
+        body: Vec<Item>,
+    },
+    Break,
+    HopBack,
     Print(Expr),
     Melo(Iden),
 }

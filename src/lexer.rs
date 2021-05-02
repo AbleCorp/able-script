@@ -94,6 +94,12 @@ pub enum Token {
     #[token("loop")]
     Loop,
 
+    #[token("break")]
+    Break,
+
+    #[token("hopback")]
+    HopBack,
+
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
@@ -114,6 +120,9 @@ pub enum Token {
     /// A C-complaint identifier
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
     Identifier(String),
+
+    #[regex("nul")]
+    Nul,
 
     #[token("(")]
     LeftParenthesis,

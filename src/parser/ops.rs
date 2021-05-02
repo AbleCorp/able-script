@@ -83,6 +83,7 @@ impl<'a> Parser<'a> {
             } else {
                 i
             }))),
+            Token::Nul => Ok(Expr::Literal(Value::Nul)),
             Token::LogNot => {
                 let next = self.lexer.next();
                 Ok(Expr::Not(Box::new(self.parse_expr(next)?)))
