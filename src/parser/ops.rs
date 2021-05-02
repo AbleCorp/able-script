@@ -32,6 +32,12 @@ impl<'a> Parser<'a> {
                 Some(Token::Subtract) => self.subtract(buf)?,
                 Some(Token::Multiply) => self.multiply(buf)?,
                 Some(Token::Divide) => self.divide(buf)?,
+                Some(Token::OpLt) => self.cmplt(buf)?,
+                Some(Token::OpGt) => self.cmpgt(buf)?,
+                Some(Token::OpEq) => self.cmpeq(buf)?,
+                Some(Token::OpNeq) => self.cmpneq(buf)?,
+                Some(Token::LogAnd) => self.logand(buf)?,
+                Some(Token::LogOr) => self.logor(buf)?,
                 Some(Token::Print) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
@@ -48,10 +54,16 @@ impl<'a> Parser<'a> {
         subtract => Subtract;
         multiply => Multiply;
         divide => Divide;
+        cmplt => Lt;
+        cmpgt => Gt;
+        cmpeq => Eq;
+        cmpneq => Neq;
+        logand => And;
+        logor => Or;
     }
 
     /// Ensure that input token is an expression
-    fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
+    pub(super) fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
         let token = token.ok_or(Error {
             kind: ErrorKind::EndOfTokenStream,
             position: self.lexer.span(),
@@ -63,6 +75,10 @@ impl<'a> Parser<'a> {
             Token::String(s) => Ok(Expr::Literal(Value::Str(s))),
             Token::Aboolean(a) => Ok(Expr::Literal(Value::Abool(a))),
             Token::Identifier(i) => Ok(Expr::Identifier(Iden(i))),
+            Token::LogNot => {
+                let next = self.lexer.next();
+                Ok(Expr::Not(Box::new(self.parse_expr(next)?)))
+            }
             Token::LeftParenthesis => self.parse_paren(),
             t => Err(self.unexpected_token(Some(t))),
         }
@@ -95,7 +111,7 @@ impl<'a> Parser<'a> {
                     self.lexer.next();
                     return Ok(buf);
                 }
-                _ => return Ok(buf.into()),
+                _ => return Ok(buf),
             };
         }
     }

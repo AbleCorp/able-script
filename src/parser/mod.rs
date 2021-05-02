@@ -59,7 +59,9 @@ impl<'a> Parser<'a> {
             | Token::Aboolean(_)
             | Token::Boolean(_)
             | Token::Integer(_)
-            | Token::String(_) => self.parse_ops(token),
+            | Token::String(_)
+            | Token::LogNot => self.parse_ops(token),
+
             // Control flow
             Token::If => self.if_cond(),
 

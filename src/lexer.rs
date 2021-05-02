@@ -174,6 +174,15 @@ pub enum Token {
     #[token("!=")]
     OpNeq,
 
+    #[token("&")]
+    LogAnd,
+
+    #[token("|")]
+    LogOr,
+
+    #[token("!")]
+    LogNot,
+
     /// Base52 based character ('a')
     #[token("'.*'")]
     Char,
