@@ -1,6 +1,64 @@
-use logos::{Lexer, Logos};
+use logos::{Lexer, Logos, Span};
 
 use crate::variables::Abool;
+
+pub struct PeekableLexer<'source> {
+    lexer: Lexer<'source, Token>,
+    peeked: Option<Option<Token>>,
+}
+
+impl<'source> PeekableLexer<'source> {
+    pub fn lexer(source: &'source str) -> Self {
+        Self {
+            lexer: Token::lexer(source),
+            peeked: None,
+        }
+    }
+
+    /// Returns a reference to the next() value without advancing the iterator.
+    #[inline]
+    pub fn peek(&mut self) -> &Option<Token> {
+        if self.peeked.is_none() {
+            self.peeked = Some(self.lexer.next());
+        }
+        self.peeked.as_ref().unwrap()
+    }
+
+    /// Get the range for the current token in `Source`.
+    #[inline]
+    pub fn span(&self) -> Span {
+        self.lexer.span()
+    }
+
+    /// Get a string slice of the current token.
+    #[inline]
+    pub fn slice(&self) -> &'source str {
+        self.lexer.slice()
+    }
+
+    /// Get a slice of remaining source, starting at the end of current token.
+    #[inline]
+    pub fn remainder(&self) -> &'source str {
+        self.lexer.remainder()
+    }
+}
+
+impl<'source> Iterator for PeekableLexer<'source> {
+    type Item = Token;
+
+    /// Advances the iterator and returns the next value.
+    ///
+    /// Returns [`None`] when iteration is finished.
+    /// Individual iterator implementations may choose to resume iteration, and so calling `next()`
+    /// again may or may not eventually start returning [`Some(Item)`] again at some point.
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.peeked.take() {
+            Some(v) => v,
+            None => self.lexer.next(),
+        }
+    }
+}
 
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
@@ -36,6 +94,12 @@ pub enum Token {
     #[token("loop")]
     Loop,
 
+    #[token("break")]
+    Break,
+
+    #[token("hopback")]
+    HopBack,
+
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
@@ -56,6 +120,9 @@ pub enum Token {
     /// A C-complaint identifier
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
     Identifier(String),
+
+    #[regex("nul")]
+    Nul,
 
     #[token("(")]
     LeftParenthesis,
@@ -115,6 +182,15 @@ pub enum Token {
 
     #[token("!=")]
     OpNeq,
+
+    #[token("&")]
+    LogAnd,
+
+    #[token("|")]
+    LogOr,
+
+    #[token("!")]
+    LogNot,
 
     /// Base52 based character ('a')
     #[token("'.*'")]

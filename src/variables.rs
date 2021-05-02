@@ -7,9 +7,9 @@ pub enum Abool {
     Always = 1,
 }
 
-impl Into<bool> for Abool {
-    fn into(self) -> bool {
-        match self {
+impl From<Abool> for bool {
+    fn from(val: Abool) -> Self {
+        match val {
             Abool::Never => false,
             Abool::Always => true,
             Abool::Sometimes => rand::thread_rng().gen(),
@@ -17,12 +17,13 @@ impl Into<bool> for Abool {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Str(String),
     Int(i32),
     Bool(bool),
     Abool(Abool),
+    Nul,
 }
 
 #[derive(Debug)]

@@ -1,8 +1,11 @@
 use crate::error::{Error, ErrorKind};
-use crate::tokens::Token;
+use crate::lexer::Token;
 use crate::variables::Abool;
 
-use super::{item::Expr, Parser};
+use super::{
+    item::{Iden, Item},
+    Parser,
+};
 
 pub fn abool2num(abool: Abool) -> i32 {
     match abool {
@@ -30,9 +33,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(super) fn require_iden(&mut self) -> Result<String, Error> {
+    /// Require an identifier on next and return it
+    pub(super) fn require_iden(&mut self) -> Result<Iden, Error> {
         if let Some(Token::Identifier(id)) = self.lexer.next() {
-            Ok(id)
+            if self.tdark {
+                Ok(Iden(id.replace("lang", "script")))
+            } else {
+                Ok(Iden(id))
+            }
         } else {
             Err(Error {
                 kind: ErrorKind::InvalidIdentifier,
@@ -41,18 +49,23 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Throw unexpected token error (optionally what was expected)
     pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
-        Error {
-            kind: ErrorKind::SyntaxError(format!(
+        let error_msg = match expected {
+            Some(s) => format!(
                 "Unexpected token: `{}` (required: `{:?}`)",
                 self.lexer.slice(),
-                expected
-            )),
+                s
+            ),
+            None => format!("Unexpected token: `{}`", self.lexer.slice(),),
+        };
+        Error {
+            kind: ErrorKind::SyntaxError(error_msg),
             position: self.lexer.span(),
         }
     }
 
-    pub(super) fn parse_body(&mut self) -> Result<Vec<Expr>, Error> {
+    pub(super) fn parse_body(&mut self) -> Result<Vec<Item>, Error> {
         let mut body = Vec::new();
         loop {
             let token = {
@@ -70,7 +83,7 @@ impl<'a> Parser<'a> {
             if token == Token::RightBrace {
                 break;
             }
-            body.push(self.parse_expr(Some(token))?);
+            body.push(self.parse_item(Some(token))?);
         }
         Ok(body)
     }

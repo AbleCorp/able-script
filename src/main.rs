@@ -2,11 +2,13 @@
 
 mod base_55;
 mod error;
+mod lexer;
 mod parser;
-mod tokens;
+mod repl;
 mod variables;
 
 use clap::{App, Arg};
+use logos::Source;
 use parser::Parser;
 fn main() {
     // variables::test();
@@ -14,7 +16,7 @@ fn main() {
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Able <abl3theabove@gmail.com>")
-        .about("Does awesome things")
+        .about("AbleScript interpreter")
         .arg(
             Arg::with_name("file")
                 .short("f")
@@ -33,11 +35,24 @@ fn main() {
             // Parse
             let mut parser = Parser::new(&source);
             let ast = parser.init();
-            println!("{:#?}", ast);
+            match ast {
+                Ok(ast) => println!("{:#?}", ast),
+                Err(e) => {
+                    println!(
+                        "Error `{:?}` occured at span: {:?} = `{:?}`",
+                        e.kind,
+                        e.position.clone(),
+                        source.slice(e.position)
+                    );
+                }
+            }
         }
         None => {
-            println!("hi");
-            //start the prompt
+            println!(
+                "Hi [AbleScript {}] - AST Printer",
+                env!("CARGO_PKG_VERSION")
+            );
+            repl::repl();
         }
     }
 }

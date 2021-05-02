@@ -1,44 +1,56 @@
 mod item;
+mod ops;
 mod utils;
 
-use item::Expr;
+use item::Item;
 
 use crate::{
     error::{Error, ErrorKind},
+    lexer::PeekableLexer,
+    parser::item::{Expr, Stmt},
     variables::Value,
 };
-use crate::{parser::item::Iden, tokens::Token};
+use crate::{lexer::Token, parser::item::Iden};
 
-use logos::Logos;
+pub type ParseResult = Result<Item, Error>;
 
 /// Parser structure / state machine
 pub struct Parser<'a> {
-    lexer: logos::Lexer<'a, Token>,
-    ast: Vec<Expr>,
+    lexer: PeekableLexer<'a>,
+    ast: Vec<Item>,
+    tdark: bool,
 }
 
 impl<'a> Parser<'a> {
     /// Create a new parser object
     pub fn new(source: &'a str) -> Self {
         Self {
-            lexer: Token::lexer(source),
+            lexer: PeekableLexer::lexer(source),
             ast: Vec::new(),
+            tdark: false,
         }
     }
 
-    pub fn init(&mut self) -> Result<Vec<Expr>, Error> {
+    pub fn init(&mut self) -> Result<Vec<Item>, Error> {
         loop {
             let token = self.lexer.next();
-            if token.is_none() {
-                return Ok(self.ast.clone());
-            };
 
-            let expr = self.parse_expr(token)?;
-            self.ast.push(expr);
+            match token {
+                Some(Token::Comment) => continue,
+                Some(Token::TDark) => {
+                    let mut block = self.tdark_block()?;
+                    self.ast.append(&mut block);
+                }
+                None => return Ok(self.ast.clone()),
+                _ => {
+                    let item = self.parse_item(token)?;
+                    self.ast.push(item);
+                }
+            }
         }
     }
 
-    fn parse_expr(&mut self, token: Option<Token>) -> Result<Expr, Error> {
+    fn parse_item(&mut self, token: Option<Token>) -> ParseResult {
         if matches!(token, None) {
             return Err(Error {
                 kind: ErrorKind::EndOfTokenStream,
@@ -50,26 +62,38 @@ impl<'a> Parser<'a> {
         let start = self.lexer.span().start;
 
         match token {
+            Token::Identifier(_)
+            | Token::Aboolean(_)
+            | Token::Boolean(_)
+            | Token::Integer(_)
+            | Token::String(_)
+            | Token::Nul
+            | Token::LogNot => self.parse_ops(token),
+
             // Control flow
             Token::If => self.if_cond(),
+            Token::Loop => self.loop_block(),
+
+            Token::HopBack => {
+                self.require(Token::Semicolon)?;
+                Ok(Stmt::HopBack.into())
+            }
+            Token::Break => {
+                self.require(Token::Semicolon)?;
+                Ok(Stmt::Break.into())
+            }
 
             // Declarations
             Token::Variable => self.variable_declaration(),
             Token::Function => self.function_declaration(),
             Token::BfFunction => self.bff_declaration(),
 
-            // Literals
-            Token::String(x) => Ok(Expr::Literal(Value::Str(x))),
-            Token::Integer(x) => Ok(Expr::Literal(Value::Int(x))),
-            Token::Boolean(x) => Ok(Expr::Literal(Value::Bool(x))),
-            Token::Aboolean(x) => Ok(Expr::Literal(Value::Abool(x))),
-
             // Prefix keywords
             // Melo - ban variable from next usage (runtime error)
             Token::Melo => {
                 let e = self.require_iden()?;
                 self.require(Token::Semicolon)?;
-                Ok(Expr::Melo(Iden(e)))
+                Ok(Stmt::Melo(e).into())
             }
 
             _ => Err(Error {
@@ -82,14 +106,14 @@ impl<'a> Parser<'a> {
     /// Parse variable declaration
     ///
     /// `var [iden] = [literal];`
-    fn variable_declaration(&mut self) -> Result<Expr, Error> {
+    fn variable_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
 
         let init = match self.lexer.next() {
             Some(Token::Semicolon) => None,
             Some(Token::Assignment) => {
                 let value = self.lexer.next();
-                let value = self.parse_expr(value)?;
+                let value = self.parse_item(value)?;
                 self.require(Token::Semicolon)?;
                 Some(Box::new(value))
             }
@@ -101,28 +125,35 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(Expr::VariableDeclaration { iden, init })
+        Ok(Stmt::VariableDeclaration { iden, init }.into())
     }
 
     /// Declare function
     ///
     /// `functio [iden] ([expr], [expr]) { ... }
-    fn function_declaration(&mut self) -> Result<Expr, Error> {
+    fn function_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
         self.require(Token::LeftParenthesis)?;
-        self.require(Token::RightParenthesis)?;
-
+        let mut args = vec![];
+        loop {
+            let next = self.lexer.next();
+            match next {
+                Some(Token::RightParenthesis) => break,
+                Some(Token::Identifier(i)) => args.push(Iden(i)),
+                _ => return Err(self.unexpected_token(None)),
+            }
+        }
         self.require(Token::LeftBrace)?;
         // Parse function body
         let body = self.parse_body()?;
 
-        Ok(Expr::FunctionDeclaration { iden, body })
+        Ok(Stmt::FunctionDeclaration { iden, args, body }.into())
     }
 
     /// Declare BF FFI Function
     ///
     /// `bff [iden] { ... }`
-    fn bff_declaration(&mut self) -> Result<Expr, Error> {
+    fn bff_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
         self.require(Token::LeftBrace)?;
 
@@ -140,9 +171,6 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            if token == Token::RightBrace {
-                break;
-            }
             body.push_str(match token {
                 Token::OpGt
                 | Token::OpLt
@@ -156,23 +184,118 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.unexpected_token(None)),
             });
         }
-        Ok(Expr::BfFDeclaration { iden, body })
+        Ok(Stmt::BfFDeclaration { iden, body }.into())
     }
 
-    /// Parse If-expression
-    pub fn if_cond(&mut self) -> Result<Expr, Error> {
+    /// Parse If-stmt
+    pub fn if_cond(&mut self) -> ParseResult {
         self.require(Token::LeftParenthesis)?;
         let cond = self.lexer.next();
-        let cond = self.parse_expr(cond)?;
+        let cond = self.parse_item(cond)?;
         self.require(Token::RightParenthesis)?;
 
         self.require(Token::LeftBrace)?;
 
         let body = self.parse_body()?;
 
-        Ok(Expr::If {
+        Ok(Stmt::If {
             cond: Box::new(cond),
             body,
-        })
+        }
+        .into())
+    }
+
+    /// Parse loop
+    pub fn loop_block(&mut self) -> ParseResult {
+        self.require(Token::LeftBrace)?;
+        let body = self.parse_body()?;
+
+        Ok(Stmt::Loop { body }.into())
+    }
+
+    /// T-Dark block parsing
+    pub fn tdark_block(&mut self) -> Result<Vec<Item>, Error> {
+        self.require(Token::LeftBrace)?;
+        self.tdark = true;
+        let mut body = Vec::new();
+        loop {
+            let token = {
+                match self.lexer.next() {
+                    Some(t) => t,
+                    None => {
+                        return Err(Error {
+                            kind: ErrorKind::EndOfTokenStream,
+                            position: self.lexer.span(),
+                        })
+                    }
+                }
+            };
+
+            if token == Token::RightBrace {
+                break;
+            }
+            body.push(self.parse_item(Some(token))?);
+        }
+        self.tdark = false;
+        Ok(body)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use Expr::*;
+    use Stmt::*;
+
+    #[test]
+    fn control_flow() {
+        let code = r#"loop { var a = 3 + 2; if (a == 5) { break; } }"#;
+
+        let expected: &[Item] = &[Item::Stmt(Loop {
+            body: vec![
+                VariableDeclaration {
+                    iden: Iden("a".to_owned()),
+                    init: Some(Box::new(
+                        Add {
+                            left: Box::new(Literal(Value::Int(3))),
+                            right: Box::new(Literal(Value::Int(2))),
+                        }
+                        .into(),
+                    )),
+                }
+                .into(),
+                If {
+                    cond: Box::new(
+                        Eq {
+                            left: Box::new(Iden("a".to_owned()).into()),
+                            right: Box::new(Literal(Value::Int(5)).into()),
+                        }
+                        .into(),
+                    ),
+                    body: vec![Break.into()],
+                }
+                .into(),
+            ],
+        })];
+        let ast = Parser::new(code).init().unwrap();
+
+        assert_eq!(ast, expected)
+    }
+
+    #[test]
+    fn tdark() {
+        let code = r#"T-Dark { var lang = nul; lang print; }"#;
+        let expected: &[Item] = &[
+            VariableDeclaration {
+                iden: Iden("script".to_owned()),
+                init: Some(Box::new(Literal(Value::Nul).into())),
+            }
+            .into(),
+            Print(Iden("script".to_owned()).into()).into(),
+        ];
+
+        let ast = Parser::new(code).init().unwrap();
+
+        assert_eq!(ast, expected)
     }
 }

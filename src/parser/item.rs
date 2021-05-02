@@ -1,27 +1,82 @@
 use crate::variables::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Iden(pub String);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Item {
+    Expr(Expr),
+    Stmt(Stmt),
+}
+
+impl From<Expr> for Item {
+    fn from(e: Expr) -> Self {
+        Item::Expr(e)
+    }
+}
+
+impl From<Iden> for Item {
+    fn from(i: Iden) -> Self {
+        Item::Expr(Expr::Identifier(i))
+    }
+}
+
+impl From<Stmt> for Item {
+    fn from(s: Stmt) -> Self {
+        Item::Stmt(s)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    Add { left: Box<Expr>, right: Box<Expr> },
+    Subtract { left: Box<Expr>, right: Box<Expr> },
+    Multiply { left: Box<Expr>, right: Box<Expr> },
+    Divide { left: Box<Expr>, right: Box<Expr> },
+    Lt { left: Box<Expr>, right: Box<Expr> },
+    Gt { left: Box<Expr>, right: Box<Expr> },
+    Eq { left: Box<Expr>, right: Box<Expr> },
+    Neq { left: Box<Expr>, right: Box<Expr> },
+    And { left: Box<Expr>, right: Box<Expr> },
+    Or { left: Box<Expr>, right: Box<Expr> },
+    Not(Box<Expr>),
+    Literal(Value),
+    Identifier(Iden),
+}
+impl From<Iden> for Expr {
+    fn from(i: Iden) -> Self {
+        Self::Identifier(i)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
     VariableDeclaration {
-        iden: String,
-        init: Option<Box<Expr>>,
+        iden: Iden,
+        init: Option<Box<Item>>,
     },
     FunctionDeclaration {
-        iden: String,
-        body: Vec<Expr>,
+        iden: Iden,
+        args: Vec<Iden>,
+        body: Vec<Item>,
     },
     BfFDeclaration {
-        iden: String,
+        iden: Iden,
         body: String,
     },
     If {
-        cond: Box<Expr>,
-        body: Vec<Expr>,
+        cond: Box<Item>,
+        body: Vec<Item>,
     },
-
-    Literal(Value),
+    FunctionCall {
+        iden: Iden,
+        args: Vec<Expr>,
+    },
+    Loop {
+        body: Vec<Item>,
+    },
+    Break,
+    HopBack,
+    Print(Expr),
     Melo(Iden),
 }
