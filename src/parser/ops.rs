@@ -20,35 +20,79 @@ macro_rules! gen_infix {
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_ops(&mut self, token: Token) -> ParseResult {
-        if matches!(self.lexer.peek(), Some(Token::LeftParenthesis)) {
-            return self.fn_call(token);
+        match self.lexer.peek() {
+            Some(Token::LeftParenthesis) => return self.fn_call(token),
+            Some(Token::Assignment) => return self.parse_assignment(token),
+            _ => (),
         }
 
         let mut buf: Expr = self.parse_expr(Some(token))?;
 
         loop {
-            buf = match self.lexer.peek() {
-                Some(Token::Addition) => self.addition(buf)?,
-                Some(Token::Subtract) => self.subtract(buf)?,
-                Some(Token::Multiply) => self.multiply(buf)?,
-                Some(Token::Divide) => self.divide(buf)?,
-                Some(Token::OpLt) => self.cmplt(buf)?,
-                Some(Token::OpGt) => self.cmpgt(buf)?,
-                Some(Token::OpEq) => self.cmpeq(buf)?,
-                Some(Token::OpNeq) => self.cmpneq(buf)?,
-                Some(Token::LogAnd) => self.logand(buf)?,
-                Some(Token::LogOr) => self.logor(buf)?,
-                Some(Token::Assignment) => return self.set_variable(buf),
+            let peek = self.lexer.peek().clone();
+            buf = match peek {
                 Some(Token::Print) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
                     return Ok(Stmt::Print(buf).into());
                 }
-                _ => return Ok(buf.into()),
+                None => return Ok(buf.into()),
+                _ => self.parse_operation(peek, buf)?,
             }
         }
     }
 
+    /// Match and perform
+    pub(super) fn parse_operation(&mut self, token: Option<Token>, buf: Expr) -> ExprResult {
+        match token {
+            Some(Token::Addition) => self.addition(buf),
+            Some(Token::Subtract) => self.subtract(buf),
+            Some(Token::Multiply) => self.multiply(buf),
+            Some(Token::Divide) => self.divide(buf),
+            Some(Token::OpLt) => self.cmplt(buf),
+            Some(Token::OpGt) => self.cmpgt(buf),
+            Some(Token::OpEq) => self.cmpeq(buf),
+            Some(Token::OpNeq) => self.cmpneq(buf),
+            Some(Token::LogAnd) => self.logand(buf),
+            Some(Token::LogOr) => self.logor(buf),
+            Some(Token::LeftParenthesis) => Err(Error {
+                kind: ErrorKind::SyntaxError("Function call isn't an expression!".to_owned()),
+                position: self.lexer.span(),
+            }),
+            Some(_) | None => Err(self.unexpected_token(None)),
+        }
+    }
+
+    fn parse_assignment(&mut self, token: Token) -> ParseResult {
+        self.lexer.next();
+        let iden = if let Token::Identifier(i) = token {
+            Iden(i)
+        } else {
+            return Err(Error {
+                kind: ErrorKind::InvalidIdentifier,
+                position: self.lexer.span(),
+            });
+        };
+
+        let next = self.lexer.next();
+        let mut value = self.parse_expr(next)?;
+        loop {
+            let peek = self.lexer.peek().clone();
+            value = match peek {
+                Some(Token::Semicolon) => break,
+                None => {
+                    return Err(Error {
+                        kind: ErrorKind::EndOfTokenStream,
+                        position: self.lexer.span(),
+                    })
+                }
+                Some(t) => self.parse_operation(Some(t), value)?,
+            };
+        }
+        self.lexer.next();
+
+        Ok(Stmt::VarAssignment { iden, value }.into())
+    }
     // Generate infix
     gen_infix! {
         addition => Add;
@@ -63,22 +107,8 @@ impl<'a> Parser<'a> {
         logor => Or;
     }
 
-    fn set_variable(&mut self, iden: Expr) -> ParseResult {
-        self.lexer.next();
-        if let Expr::Identifier(iden) = iden {
-            let next = self.lexer.next();
-            let value = self.parse_expr(next)?;
-            self.require(Token::Semicolon)?;
-            Ok(Stmt::VarAssignment { iden, value }.into())
-        } else {
-            Err(Error {
-                kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(),
-            })
-        }
-    }
     /// Ensure that input token is an expression
-    fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
+    pub(super) fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
         let token = token.ok_or(Error {
             kind: ErrorKind::EndOfTokenStream,
             position: self.lexer.span(),
@@ -109,7 +139,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse parenthesieted expression
-    fn parse_paren(&mut self) -> ExprResult {
+    pub(super) fn parse_paren(&mut self) -> ExprResult {
         let next = self.lexer.next();
         let mut buf = self.parse_expr(next)?;
         loop {
@@ -119,23 +149,14 @@ impl<'a> Parser<'a> {
             })?;
 
             buf = match Some(next) {
-                Some(Token::Addition) => self.addition(buf)?,
-                Some(Token::Subtract) => self.subtract(buf)?,
-                Some(Token::Multiply) => self.multiply(buf)?,
-                Some(Token::Divide) => self.divide(buf)?,
-                Some(Token::LeftParenthesis) => {
-                    return Err(Error {
-                        kind: ErrorKind::SyntaxError(
-                            "Function call isn't an expression!".to_owned(),
-                        ),
-                        position: self.lexer.span(),
-                    })
-                }
                 Some(Token::RightParenthesis) => {
                     self.lexer.next();
                     return Ok(buf);
                 }
-                _ => return Ok(buf),
+                None => return Ok(buf.into()),
+                Some(t) => {
+                    self.parse_operation(Some(t), buf)?
+                }
             };
         }
     }

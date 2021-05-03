@@ -111,13 +111,31 @@ impl<'a> Parser<'a> {
     fn variable_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
 
-        let init = match self.lexer.next() {
-            Some(Token::Semicolon) => None,
+        let peek = self.lexer.peek().clone();
+        let init = match peek {
+            Some(Token::Semicolon) => {
+                self.lexer.next();
+                None
+            }
             Some(Token::Assignment) => {
-                let value = self.lexer.next();
-                let value = self.parse_item(value)?;
-                self.require(Token::Semicolon)?;
-                Some(Box::new(value))
+                self.lexer.next();
+                let next = self.lexer.next();
+                let mut value = self.parse_expr(next)?;
+                loop {
+                    let peek = self.lexer.peek().clone();
+                    value = match peek {
+                        Some(Token::Semicolon) => break,
+                        None => {
+                            return Err(Error {
+                                kind: ErrorKind::EndOfTokenStream,
+                                position: self.lexer.span(),
+                            })
+                        }
+                        Some(t) => self.parse_operation(Some(t), value)?,
+                    };
+                }
+                self.lexer.next();
+                Some(value)
             }
             _ => {
                 return Err(Error {
@@ -192,19 +210,12 @@ impl<'a> Parser<'a> {
     /// Parse If-stmt
     pub fn if_cond(&mut self) -> ParseResult {
         self.require(Token::LeftParenthesis)?;
-        let cond = self.lexer.next();
-        let cond = self.parse_item(cond)?;
-        self.require(Token::RightParenthesis)?;
-
+        let cond = self.parse_paren()?;
         self.require(Token::LeftBrace)?;
 
         let body = self.parse_body()?;
 
-        Ok(Stmt::If {
-            cond: Box::new(cond),
-            body,
-        }
-        .into())
+        Ok(Stmt::If { cond: cond, body }.into())
     }
 
     /// Parse loop
@@ -257,23 +268,17 @@ mod tests {
             body: vec![
                 VariableDeclaration {
                     iden: Iden("a".to_owned()),
-                    init: Some(Box::new(
-                        Add {
-                            left: Box::new(Literal(Value::Int(3))),
-                            right: Box::new(Literal(Value::Int(2))),
-                        }
-                        .into(),
-                    )),
+                    init: Some(Add {
+                        left: Box::new(Literal(Value::Int(3))),
+                        right: Box::new(Literal(Value::Int(2))),
+                    }),
                 }
                 .into(),
                 If {
-                    cond: Box::new(
-                        Eq {
-                            left: Box::new(Iden("a".to_owned()).into()),
-                            right: Box::new(Literal(Value::Int(5)).into()),
-                        }
-                        .into(),
-                    ),
+                    cond: Eq {
+                        left: Box::new(Iden("a".to_owned()).into()),
+                        right: Box::new(Literal(Value::Int(5)).into()),
+                    },
                     body: vec![Break.into()],
                 }
                 .into(),
@@ -290,7 +295,7 @@ mod tests {
         let expected: &[Item] = &[
             VariableDeclaration {
                 iden: Iden("script".to_owned()),
-                init: Some(Box::new(Literal(Value::Nul).into())),
+                init: Some(Literal(Value::Nul)),
             }
             .into(),
             Print(Iden("script".to_owned()).into()).into(),
