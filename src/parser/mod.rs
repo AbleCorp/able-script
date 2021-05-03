@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
             }
 
             _ => Err(Error {
-                kind: ErrorKind::SyntaxError("Unexpected identifier".to_owned()),
+                kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
                 position: start..self.lexer.span().end,
             }),
         }
@@ -153,6 +153,7 @@ impl<'a> Parser<'a> {
     /// `functio [iden] ([expr], [expr]) { ... }
     fn function_declaration(&mut self) -> ParseResult {
         let iden = self.require_iden()?;
+
         self.require(Token::LeftParenthesis)?;
         let mut args = vec![];
         loop {
@@ -163,7 +164,9 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.unexpected_token(None)),
             }
         }
+
         self.require(Token::LeftBrace)?;
+
         // Parse function body
         let body = self.parse_body()?;
 

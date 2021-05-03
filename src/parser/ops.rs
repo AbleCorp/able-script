@@ -20,6 +20,7 @@ macro_rules! gen_infix {
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_ops(&mut self, token: Token) -> ParseResult {
+        // Statements
         match self.lexer.peek() {
             Some(Token::LeftParenthesis) => return self.fn_call(token),
             Some(Token::Assignment) => return self.parse_assignment(token),
@@ -31,12 +32,15 @@ impl<'a> Parser<'a> {
         loop {
             let peek = self.lexer.peek().clone();
             buf = match peek {
+                // Print statement
                 Some(Token::Print) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
                     return Ok(Stmt::Print(buf).into());
                 }
                 None => return Ok(buf.into()),
+
+                // An expression
                 _ => self.parse_operation(peek, buf)?,
             }
         }
@@ -65,6 +69,8 @@ impl<'a> Parser<'a> {
 
     fn parse_assignment(&mut self, token: Token) -> ParseResult {
         self.lexer.next();
+
+        // Extract identifier
         let iden = if let Token::Identifier(i) = token {
             Iden(i)
         } else {
@@ -76,6 +82,7 @@ impl<'a> Parser<'a> {
 
         let next = self.lexer.next();
         let mut value = self.parse_expr(next)?;
+
         loop {
             let peek = self.lexer.peek().clone();
             value = match peek {
@@ -89,6 +96,7 @@ impl<'a> Parser<'a> {
                 Some(t) => self.parse_operation(Some(t), value)?,
             };
         }
+
         self.lexer.next();
 
         Ok(Stmt::VarAssignment { iden, value }.into())
@@ -143,12 +151,8 @@ impl<'a> Parser<'a> {
         let next = self.lexer.next();
         let mut buf = self.parse_expr(next)?;
         loop {
-            let next = self.lexer.peek().clone().ok_or(Error {
-                kind: ErrorKind::EndOfTokenStream,
-                position: self.lexer.span(),
-            })?;
-
-            buf = match Some(next) {
+            let peek = self.lexer.peek().clone();
+            buf = match peek {
                 Some(Token::RightParenthesis) => {
                     self.lexer.next();
                     return Ok(buf);
