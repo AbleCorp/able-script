@@ -53,7 +53,7 @@ impl From<Iden> for Expr {
 pub enum Stmt {
     VariableDeclaration {
         iden: Iden,
-        init: Option<Box<Item>>,
+        init: Option<Expr>,
     },
     FunctionDeclaration {
         iden: Iden,
@@ -65,7 +65,7 @@ pub enum Stmt {
         body: String,
     },
     If {
-        cond: Box<Item>,
+        cond: Expr,
         body: Vec<Item>,
     },
     FunctionCall {
@@ -74,6 +74,11 @@ pub enum Stmt {
     },
     Loop {
         body: Vec<Item>,
+    },
+
+    VarAssignment {
+        iden: Iden,
+        value: Expr,
     },
     Break,
     HopBack,

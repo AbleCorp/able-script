@@ -88,9 +88,6 @@ pub enum Token {
     #[token("if")]
     If,
 
-    #[token("else")]
-    Else,
-
     #[token("loop")]
     Loop,
 
