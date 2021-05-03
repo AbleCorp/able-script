@@ -153,10 +153,8 @@ impl<'a> Parser<'a> {
                     self.lexer.next();
                     return Ok(buf);
                 }
-                None => return Ok(buf.into()),
-                Some(t) => {
-                    self.parse_operation(Some(t), buf)?
-                }
+                None => return Ok(buf),
+                Some(t) => self.parse_operation(Some(t), buf)?,
             };
         }
     }

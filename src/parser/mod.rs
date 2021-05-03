@@ -215,7 +215,7 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_body()?;
 
-        Ok(Stmt::If { cond: cond, body }.into())
+        Ok(Stmt::If { cond, body }.into())
     }
 
     /// Parse loop
