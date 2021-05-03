@@ -68,6 +68,7 @@ impl<'a> Parser<'a> {
             | Token::Integer(_)
             | Token::String(_)
             | Token::Nul
+            | Token::LeftParenthesis
             | Token::LogNot => self.parse_ops(token),
 
             // Control flow
