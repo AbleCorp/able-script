@@ -38,6 +38,7 @@ impl<'a> Parser<'a> {
                 Some(Token::OpNeq) => self.cmpneq(buf)?,
                 Some(Token::LogAnd) => self.logand(buf)?,
                 Some(Token::LogOr) => self.logor(buf)?,
+                Some(Token::Assignment) => return self.set_variable(buf),
                 Some(Token::Print) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
@@ -62,8 +63,22 @@ impl<'a> Parser<'a> {
         logor => Or;
     }
 
+    fn set_variable(&mut self, iden: Expr) -> ParseResult {
+        self.lexer.next();
+        if let Expr::Identifier(iden) = iden {
+            let next = self.lexer.next();
+            let value = self.parse_expr(next)?;
+            self.require(Token::Semicolon)?;
+            Ok(Stmt::VarAssignment { iden, value }.into())
+        } else {
+            Err(Error {
+                kind: ErrorKind::InvalidIdentifier,
+                position: self.lexer.span(),
+            })
+        }
+    }
     /// Ensure that input token is an expression
-    pub(super) fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
+    fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
         let token = token.ok_or(Error {
             kind: ErrorKind::EndOfTokenStream,
             position: self.lexer.span(),

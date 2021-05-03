@@ -75,6 +75,11 @@ pub enum Stmt {
     Loop {
         body: Vec<Item>,
     },
+
+    VarAssignment {
+        iden: Iden,
+        value: Expr,
+    },
     Break,
     HopBack,
     Print(Expr),
