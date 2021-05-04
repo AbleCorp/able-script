@@ -1,6 +1,8 @@
-use crate::error::{Error, ErrorKind};
-use crate::lexer::Token;
-use crate::variables::Abool;
+use crate::{
+    error::{Error, ErrorKind},
+    lexer::Token,
+    variables::Abool,
+};
 
 use super::{
     item::{Iden, Item},

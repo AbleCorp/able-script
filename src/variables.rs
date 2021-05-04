@@ -12,7 +12,7 @@ impl From<Abool> for bool {
         match val {
             Abool::Never => false,
             Abool::Always => true,
-            Abool::Sometimes => rand::thread_rng().gen(),
+            Abool::Sometimes => rand::thread_rng().gen(), // NOTE(Able): This is amazing and should be applied anywhere abooleans exist
         }
     }
 }

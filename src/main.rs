@@ -10,6 +10,7 @@ mod variables;
 use clap::{App, Arg};
 use logos::Source;
 use parser::Parser;
+
 fn main() {
     // variables::test();
 
