@@ -11,4 +11,5 @@ Ablescript is designed to be bad.
 - No floats
 - U is equal to -210
 - bannable variables
+- fuck you
 - constants
