@@ -2,7 +2,8 @@
 //!
 //! If you just want to execute some simple brainfuck, check the [`interpret_with_io`] function.
 //!
-//! To construct the interpreter, use the [`from_ascii`] or [`from_ascii_with_input_buffer`] methods. The latter grants access to
+//! To construct the interpreter, use the [`from_ascii`] or [`from_ascii_with_input_buffer`] methods
+//! (or their variants that take a maximum tape size). The latter grants access to
 //! the method [`add_input`], which allows for the addition of input while the interpreter is running.
 //!
 //! [`from_ascii`]: Interpreter::from_ascii
@@ -24,6 +25,9 @@ use std::{
 
 // NOTE(Able): This is the brain fuck interface
 
+/// The default limit for the tape size. This is the value used by methods that don't take it as a parameter
+pub const DEFAULT_TAPE_SIZE_LIMIT: usize = 30_000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// A brainfuck interpreter. Read the [module level documentation](self) for more
 pub struct Interpreter<'a, I> {
@@ -31,17 +35,29 @@ pub struct Interpreter<'a, I> {
     instr_ptr: usize,
     tape: Vec<i8>,
     data_ptr: usize,
+    tape_size_limit: usize,
     input: I,
 }
 
 impl<'a> Interpreter<'a, InputBuffer> {
     /// Construct an `Interpreter` from an ASCII string of code with an empty input buffer
+    /// This methods sets the tape size limit to [its default value](DEFAULT_TAPE_SIZE_LIMIT)
     pub fn from_ascii_with_input_buffer(code: &'a [u8]) -> Self {
+        Self::from_ascii_with_input_buffer_and_tape_limit(code, DEFAULT_TAPE_SIZE_LIMIT)
+    }
+
+    /// Construct an `Interpreter` from an ASCII string of code with an empty input buffer,
+    /// setting the tape size limit to the specified value
+    pub fn from_ascii_with_input_buffer_and_tape_limit(
+        code: &'a [u8],
+        tape_size_limit: usize,
+    ) -> Self {
         Self {
             code,
             instr_ptr: 0,
             tape: Vec::new(),
             data_ptr: 0,
+            tape_size_limit,
             input: InputBuffer(VecDeque::new()),
         }
     }
@@ -53,15 +69,21 @@ impl<'a> Interpreter<'a, InputBuffer> {
 }
 
 impl<'a, I: BootlegRead> Interpreter<'a, I> {
-    /// Construct an interpreter from an ASCII string of code and an source of input bytes
-    pub fn from_ascii(code: &'a [u8], input: I) -> Self {
+    /// Construct an interpreter from an ASCII string of code, a source of input bytes, and a tape size limit
+    pub fn from_ascii_with_tape_limit(code: &'a [u8], input: I, tape_size_limit: usize) -> Self {
         Self {
             code,
             instr_ptr: 0,
             tape: Vec::new(),
             data_ptr: 0,
+            tape_size_limit,
             input,
         }
+    }
+
+    /// Constructs an interpreter from an ASCII string of code, a source of input bytes, and [the default tape size limit](DEFAULT_TAPE_SIZE_LIMIT)
+    pub fn from_ascii(code: &'a [u8], input: I) -> Self {
+        Self::from_ascii_with_tape_limit(code, input, DEFAULT_TAPE_SIZE_LIMIT)
     }
 
     /// Advance the interpreter by one instruction.
@@ -83,12 +105,16 @@ impl<'a, I: BootlegRead> Interpreter<'a, I> {
             }
 
             b'+' => {
-                let val = self.get_or_resize_tape_mut();
+                let val = self
+                    .get_or_resize_tape_mut()
+                    .ok_or(ProgramError::TapeSizeExceededLimit)?;
                 *val = val.checked_add(1).ok_or(ProgramError::IntegerOverflow)?;
             }
 
             b'-' => {
-                let val = self.get_or_resize_tape_mut();
+                let val = self
+                    .get_or_resize_tape_mut()
+                    .ok_or(ProgramError::TapeSizeExceededLimit)?;
                 *val = val.checked_sub(1).ok_or(ProgramError::IntegerUnderflow)?;
             }
 
@@ -98,7 +124,12 @@ impl<'a, I: BootlegRead> Interpreter<'a, I> {
             }
 
             b',' => match self.input.bootleg_read() {
-                Ok(Some(num)) => *self.get_or_resize_tape_mut() = num,
+                Ok(Some(num)) => {
+                    let cell = self
+                        .get_or_resize_tape_mut()
+                        .ok_or(ProgramError::TapeSizeExceededLimit)?;
+                    *cell = num;
+                }
                 Ok(None) => return Ok(Some(Status::NeedsInput)),
                 Err(_) => return Err(ProgramError::InputReadError),
             },
@@ -157,11 +188,14 @@ impl<'a, I: BootlegRead> Interpreter<'a, I> {
         Ok(())
     }
 
-    fn get_or_resize_tape_mut(&mut self) -> &mut i8 {
+    fn get_or_resize_tape_mut(&mut self) -> Option<&mut i8> {
+        if self.data_ptr > self.tape_size_limit {
+            return None;
+        }
         if self.data_ptr >= self.tape.len() {
             self.tape.resize(self.data_ptr + 1, 0);
         }
-        &mut self.tape[self.data_ptr]
+        Some(&mut self.tape[self.data_ptr])
     }
 
     fn get_at_data_ptr(&self) -> i8 {
@@ -251,6 +285,7 @@ pub enum ProgramError {
     InputReadError,
     UnmatchedOpeningBracket,
     UnmatchedClosingBracket,
+    TapeSizeExceededLimit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -308,6 +343,7 @@ mod tests {
             instr_ptr: 0,
             tape: vec![10, 5],
             data_ptr: 0,
+            tape_size_limit: DEFAULT_TAPE_SIZE_LIMIT,
             input: std::io::empty(),
         };
 
@@ -323,14 +359,10 @@ mod tests {
 
     #[test]
     fn hello_world() {
-        let mut interpreter = Interpreter {
-            //Source: https://en.wikipedia.org/wiki/Brainfuck
-            code: b"++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.", 
-            instr_ptr: 0,
-            tape: vec![],
-            data_ptr: 0,
-            input: std::io::empty(),
-        };
+        let mut interpreter = Interpreter::from_ascii(
+            b"++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.", 
+            std::io::empty(),
+        );
 
         let mut string = Vec::new();
         interpreter
@@ -363,5 +395,18 @@ mod tests {
             Ok(Some(IoStatus::Output(0)))
         );
         assert_eq!(interpreter.advance_until_io(), Ok(None));
+    }
+
+    #[test]
+    fn hit_tape_size_limit() {
+        let mut interpreter =
+            Interpreter::from_ascii_with_tape_limit(b"+>+>+>+>+>", std::io::empty(), 1);
+        let result = interpreter.interpret_with_output(std::io::sink());
+        assert_eq!(
+            result,
+            Err(InterpretError::ProgramError(
+                ProgramError::TapeSizeExceededLimit
+            ))
+        );
     }
 }
