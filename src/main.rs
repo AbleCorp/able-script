@@ -14,7 +14,6 @@ use parser::Parser;
 
 fn main() {
     // variables::test(); // NOTE(Able): Add this as a test case
-    brian::bff_eval("hi".to_string(), "hello".to_string());
     let matches = App::new("AbleScript")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Able <abl3theabove@gmail.com>")
