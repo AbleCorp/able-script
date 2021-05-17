@@ -1,3 +1,5 @@
+use logos::Span;
+
 use crate::variables::Value;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -9,15 +11,21 @@ pub enum Item {
     Stmt(Stmt),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Expr {
+    kind: ExprKind,
+    span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stmt {
+    kind: StmtKind,
+    span: Span,
+}
+
 impl From<Expr> for Item {
     fn from(e: Expr) -> Self {
         Item::Expr(e)
-    }
-}
-
-impl From<Iden> for Item {
-    fn from(i: Iden) -> Self {
-        Item::Expr(Expr::Identifier(i))
     }
 }
 
@@ -28,7 +36,7 @@ impl From<Stmt> for Item {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
+pub enum ExprKind {
     Add { left: Box<Expr>, right: Box<Expr> },
     Subtract { left: Box<Expr>, right: Box<Expr> },
     Multiply { left: Box<Expr>, right: Box<Expr> },
@@ -43,14 +51,14 @@ pub enum Expr {
     Literal(Value),
     Identifier(Iden),
 }
-impl From<Iden> for Expr {
+impl From<Iden> for ExprKind {
     fn from(i: Iden) -> Self {
         Self::Identifier(i)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Stmt {
+pub enum StmtKind {
     VariableDeclaration {
         iden: Iden,
         init: Option<Expr>,
