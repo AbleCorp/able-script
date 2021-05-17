@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
             Some(Token::LogOr) => self.logor(buf),
             Some(Token::LeftParenthesis) => Err(Error {
                 kind: ErrorKind::SyntaxError("Function call isn't an expression!".to_owned()),
-                position: self.lexer.span(),
+                span: self.lexer.span(),
             }),
             Some(_) | None => Err(self.unexpected_token(None)),
         }
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
         } else {
             return Err(Error {
                 kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(),
+                span: self.lexer.span(),
             });
         };
 
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
                 None => {
                     return Err(Error {
                         kind: ErrorKind::EndOfTokenStream,
-                        position: self.lexer.span(),
+                        span: self.lexer.span(),
                     })
                 }
                 Some(t) => self.parse_operation(Some(t), value)?,
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
         let token = token.ok_or(Error {
             kind: ErrorKind::EndOfTokenStream,
-            position: self.lexer.span(),
+            span: self.lexer.span(),
         })?;
 
         match token {
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
         } else {
             return Err(Error {
                 kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(),
+                span: self.lexer.span(),
             });
         };
 

@@ -1,8 +1,6 @@
-use crate::{
-    error::{Error, ErrorKind},
-    lexer::Token,
-    variables::Abool,
-};
+use logos::Span;
+
+use crate::{error::Error, lexer::SpannedToken, lexer::Token, variables::Abool};
 
 use super::{
     item::{Iden, Item},
@@ -27,43 +25,29 @@ pub fn num2abool(number: i32) -> Abool {
 
 impl<'a> Parser<'a> {
     /// Require type of token as next and return it's value (sometimes irrelevant)
-    pub(super) fn require(&mut self, with: Token) -> Result<String, Error> {
-        if self.lexer.next() == Some(with.clone()) {
-            Ok(self.lexer.slice().to_owned())
-        } else {
-            Err(self.unexpected_token(Some(with)))
+    pub(super) fn require(&mut self, with: Token) -> Result<SpannedToken, Error> {
+        let next = self.lexer.next();
+        match next {
+            Some(st) if st.0 == with => Ok(st),
+            Some((_, span)) => Err(Error::unexpected_token(span)),
+            None => Err(Error::end_of_token_stream()),
         }
     }
 
     /// Require an identifier on next and return it
-    pub(super) fn require_iden(&mut self) -> Result<Iden, Error> {
-        if let Some(Token::Identifier(id)) = self.lexer.next() {
-            if self.tdark {
-                Ok(Iden(id.replace("lang", "script")))
-            } else {
-                Ok(Iden(id))
-            }
-        } else {
-            Err(Error {
-                kind: ErrorKind::InvalidIdentifier,
-                position: self.lexer.span(),
-            })
-        }
-    }
-
-    /// Throw unexpected token error (optionally what was expected)
-    pub(super) fn unexpected_token(&mut self, expected: Option<Token>) -> Error {
-        let error_msg = match expected {
-            Some(s) => format!(
-                "Unexpected token: `{}` (required: `{:?}`)",
-                self.lexer.slice(),
-                s
-            ),
-            None => format!("Unexpected token: `{}`", self.lexer.slice(),),
-        };
-        Error {
-            kind: ErrorKind::SyntaxError(error_msg),
-            position: self.lexer.span(),
+    pub(super) fn require_iden(&mut self) -> Result<(Iden, Span), Error> {
+        let next = self.lexer.next();
+        match next {
+            Some((Token::Identifier(i), span)) => Ok((
+                Iden(if self.tdark {
+                    i.replace("lang", "script")
+                } else {
+                    i
+                }),
+                span,
+            )),
+            Some((_, span)) => Err(Error::invalid_identifier(span)),
+            None => Err(Error::end_of_token_stream()),
         }
     }
 
@@ -73,20 +57,17 @@ impl<'a> Parser<'a> {
             let token = {
                 match self.lexer.next() {
                     Some(t) => t,
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::EndOfTokenStream,
-                            position: self.lexer.span(),
-                        })
-                    }
+                    None => unimplemented!(),
                 }
             };
 
-            if token == Token::RightBrace {
+            if matches!(token, (Token::RightBrace, _)) {
                 break;
             }
+
             body.push(self.parse_item(Some(token))?);
         }
+
         Ok(body)
     }
 }

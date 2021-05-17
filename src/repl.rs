@@ -21,8 +21,8 @@ pub fn repl() {
                         println!(
                             "Error `{:?}` occured at span: {:?} = `{:?}`",
                             e.kind,
-                            e.position.clone(),
-                            line.slice(e.position)
+                            e.span.clone(),
+                            line.slice(e.span)
                         );
                     }
                 }

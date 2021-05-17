@@ -5,11 +5,7 @@ mod utils;
 use item::Item;
 use logos::Logos;
 
-use crate::{
-    error::{Error, ErrorKind},
-    parser::item::{Expr, Stmt},
-    variables::Value,
-};
+use crate::{error::{Error, ErrorKind}, lexer::SpannedToken, parser::item::{Expr, Stmt}, variables::Value};
 use crate::{lexer::Token, parser::item::Iden};
 
 pub type ParseResult = Result<Item, Error>;
@@ -50,12 +46,9 @@ impl<'source> Parser<'source> {
         }
     }
 
-    fn parse_item(&mut self, token: Option<Token>) -> ParseResult {
+    fn parse_item(&mut self, token: Option<SpannedToken>) -> ParseResult {
         if matches!(token, None) {
-            return Err(Error {
-                kind: ErrorKind::EndOfTokenStream,
-                position: self.lexer.span(),
-            });
+            return Err(Error::end_of_token_stream());
         }
 
         let token = token.unwrap();
@@ -100,7 +93,7 @@ impl<'source> Parser<'source> {
 
             _ => Err(Error {
                 kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
-                position: start..self.lexer.span().end,
+                span: start..self.lexer.span().end,
             }),
         }
     }
@@ -128,7 +121,7 @@ impl<'source> Parser<'source> {
                         None => {
                             return Err(Error {
                                 kind: ErrorKind::EndOfTokenStream,
-                                position: self.lexer.span(),
+                                span: self.lexer.span(),
                             })
                         }
                         Some(t) => self.parse_operation(Some(t), value)?,
@@ -140,7 +133,7 @@ impl<'source> Parser<'source> {
             _ => {
                 return Err(Error {
                     kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
-                    position: self.lexer.span(),
+                    span: self.lexer.span(),
                 })
             }
         };
@@ -188,7 +181,7 @@ impl<'source> Parser<'source> {
                     None => {
                         return Err(Error {
                             kind: ErrorKind::EndOfTokenStream,
-                            position: self.lexer.span(),
+                            span: self.lexer.span(),
                         })
                     }
                 }
@@ -241,7 +234,7 @@ impl<'source> Parser<'source> {
                     None => {
                         return Err(Error {
                             kind: ErrorKind::EndOfTokenStream,
-                            position: self.lexer.span(),
+                            span: self.lexer.span(),
                         })
                     }
                 }

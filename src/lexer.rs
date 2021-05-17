@@ -2,6 +2,8 @@ use logos::{Lexer, Logos};
 
 use crate::variables::Abool;
 
+pub type SpannedToken = (Token, logos::Span);
+
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
     #[token("functio")]
