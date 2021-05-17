@@ -3,10 +3,10 @@ mod ops;
 mod utils;
 
 use item::Item;
+use logos::Logos;
 
 use crate::{
     error::{Error, ErrorKind},
-    lexer::PeekableLexer,
     parser::item::{Expr, Stmt},
     variables::Value,
 };
@@ -15,17 +15,17 @@ use crate::{lexer::Token, parser::item::Iden};
 pub type ParseResult = Result<Item, Error>;
 
 /// Parser structure / state machine
-pub struct Parser<'a> {
-    lexer: PeekableLexer<'a>,
+pub struct Parser<'source> {
+    lexer: std::iter::Peekable<logos::SpannedIter<'source, Token>>,
     ast: Vec<Item>,
     tdark: bool,
 }
 
-impl<'a> Parser<'a> {
+impl<'source> Parser<'source> {
     /// Create a new parser object
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'source str) -> Self {
         Self {
-            lexer: PeekableLexer::lexer(source),
+            lexer: Token::lexer(source).spanned().peekable(),
             ast: Vec::new(),
             tdark: false,
         }
