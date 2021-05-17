@@ -19,7 +19,7 @@ macro_rules! gen_infix {
 }
 
 impl<'a> Parser<'a> {
-    pub(super) fn parse_ops(&mut self, token: Token) -> ParseResult {
+    pub(super) fn parse_ops(&mut self, token: SpannedToken) -> ParseResult {
         // Statements
         match self.lexer.peek() {
             Some(Token::LeftParenthesis) => return self.fn_call(token),
@@ -47,28 +47,28 @@ impl<'a> Parser<'a> {
     }
 
     /// Match and perform
-    pub(super) fn parse_operation(&mut self, token: Option<Token>, buf: Expr) -> ExprResult {
+    pub(super) fn parse_operation(&mut self, token: Option<SpannedToken>, buf: Expr) -> ExprResult {
         match token {
-            Some(Token::Addition) => self.addition(buf),
-            Some(Token::Subtract) => self.subtract(buf),
-            Some(Token::Multiply) => self.multiply(buf),
-            Some(Token::Divide) => self.divide(buf),
-            Some(Token::OpLt) => self.cmplt(buf),
-            Some(Token::OpGt) => self.cmpgt(buf),
-            Some(Token::OpEq) => self.cmpeq(buf),
-            Some(Token::OpNeq) => self.cmpneq(buf),
-            Some(Token::LogAnd) => self.logand(buf),
-            Some(Token::LogOr) => self.logor(buf),
-            Some(Token::LeftParenthesis) => Err(Error {
-                kind: ErrorKind::SyntaxError("Function call isn't an expression!".to_owned()),
-                span: self.lexer.span(),
-            }),
-            Some(_) | None => Err(self.unexpected_token(None)),
+            Some((Token::Addition, span)) => self.addition(buf),
+            Some((Token::Subtract, span)) => self.subtract(buf),
+            Some((Token::Multiply, span)) => self.multiply(buf),
+            Some((Token::Divide, span)) => self.divide(buf),
+            Some((Token::OpLt, span)) => self.cmplt(buf),
+            Some((Token::OpGt, span)) => self.cmpgt(buf),
+            Some((Token::OpEq, span)) => self.cmpeq(buf),
+            Some((Token::OpNeq, span)) => self.cmpneq(buf),
+            Some((Token::LogAnd, span)) => self.logand(buf),
+            Some((Token::LogOr, span)) => self.logor(buf),
+            Some((Token::LeftParenthesis, span)) | Some((_, span)) => {
+                Err(Error::unexpected_token(span))
+            }
+            None => Err(Error::end_of_token_stream()),
         }
     }
 
-    fn parse_assignment(&mut self, token: Token) -> ParseResult {
-        self.lexer.next();
+    fn parse_assignment(&mut self, token: SpannedToken) -> ParseResult {
+        let start = token.1.start;
+        self.lexer.next(); // Eat
 
         // Extract identifier
         let iden = if let Token::Identifier(i) = token {
@@ -116,11 +116,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Ensure that input token is an expression
-    pub(super) fn parse_expr(&mut self, token: Option<Token>) -> ExprResult {
-        let token = token.ok_or(Error {
-            kind: ErrorKind::EndOfTokenStream,
-            span: self.lexer.span(),
-        })?;
+    pub(super) fn parse_expr(&mut self, token: Option<SpannedToken>) -> ExprResult {
+        let token = token.ok_or(Error::end_of_token_stream())?;
 
         match token {
             Token::Boolean(b) => Ok(Expr::Literal(Value::Bool(b))),
@@ -142,7 +139,7 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Not(Box::new(self.parse_expr(next)?)))
             }
             Token::LeftParenthesis => self.parse_paren(),
-            t => Err(self.unexpected_token(Some(t))),
+            (_, span) => Err(Error::unexpected_token(span)),
         }
     }
 

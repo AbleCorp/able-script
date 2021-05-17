@@ -42,8 +42,8 @@ fn main() {
                     println!(
                         "Error `{:?}` occured at span: {:?} = `{:?}`",
                         e.kind,
-                        e.position.clone(),
-                        source.slice(e.position)
+                        e.span.clone(),
+                        source.slice(e.span)
                     );
                 }
             }

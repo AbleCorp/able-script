@@ -23,7 +23,7 @@ impl Error {
     pub fn end_of_token_stream() -> Self {
         Self {
             kind: ErrorKind::EndOfTokenStream,
-            span: 0..0, // TODO: Make a normal span
+            span: 0..0, // TODO: FIX THIS
         }
     }
 
