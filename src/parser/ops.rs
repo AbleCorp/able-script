@@ -148,30 +148,30 @@ impl<'a> Parser<'a> {
                     span.start..expr.span.end,
                 ))
             }
-            Token::LeftParenthesis => self.parse_paren(),
+            Token::LeftParenthesis => self.parse_paren(span.start),
             _ => Err(Error::unexpected_token(span)),
         }
     }
 
     /// Parse parenthesieted expression
-    pub(super) fn parse_paren(&mut self) -> ExprResult {
+    pub(super) fn parse_paren(&mut self, start: usize) -> ExprResult {
         let next = self.lexer.next();
         let mut buf = self.parse_expr(next)?;
         loop {
             let peek = self.lexer.peek().clone();
             buf = match peek {
-                Some(Token::RightParenthesis) => {
-                    self.lexer.next();
-                    return Ok(buf);
-                }
-                None => return Ok(buf),
-                Some(t) => self.parse_operation(Some(t), buf)?,
-            };
+                Some((Token::RightParenthesis, span)) => {
+                    let next = self.lexer.next();
+                    break Ok(Expr::new(buf.kind, start..span.end))
+                },
+                None => break Err(Error::end_of_token_stream()),
+                Some(&t) => self.parse_operation(Some(t), buf)?,
+            }
         }
     }
 
     /// Parse function call
-    fn fn_call(&mut self, token: Token) -> ParseResult {
+    fn fn_call(&mut self, token: SpannedToken) -> ParseResult {
         let iden = if let Token::Identifier(i) = token {
             Iden(i)
         } else {
@@ -180,6 +180,10 @@ impl<'a> Parser<'a> {
                 span: self.lexer.span(),
             });
         };
+
+        let iden = match token {
+            (Token::Identifier(i), span)
+        }
 
         self.lexer.next();
         let mut args = Vec::new();
