@@ -13,14 +13,26 @@ pub enum Item {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
-    kind: ExprKind,
-    span: Span,
+    pub kind: ExprKind,
+    pub span: Span,
+}
+
+impl Expr {
+    pub fn new(kind: ExprKind, span: Span) -> Self {
+        Self { kind, span }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stmt {
-    kind: StmtKind,
-    span: Span,
+    pub kind: StmtKind,
+    pub span: Span,
+}
+
+impl Stmt {
+    pub fn new(kind: StmtKind, span: Span) -> Self {
+        Self { kind, span }
+    }
 }
 
 impl From<Expr> for Item {

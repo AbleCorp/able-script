@@ -117,29 +117,39 @@ impl<'a> Parser<'a> {
 
     /// Ensure that input token is an expression
     pub(super) fn parse_expr(&mut self, token: Option<SpannedToken>) -> ExprResult {
-        let token = token.ok_or(Error::end_of_token_stream())?;
+        let (token, span) = token.ok_or(Error::end_of_token_stream())?;
 
         match token {
-            Token::Boolean(b) => Ok(Expr::Literal(Value::Bool(b))),
-            Token::Integer(i) => Ok(Expr::Literal(Value::Int(i))),
-            Token::String(s) => Ok(Expr::Literal(Value::Str(if self.tdark {
-                s.replace("lang", "script")
-            } else {
-                s
-            }))),
-            Token::Aboolean(a) => Ok(Expr::Literal(Value::Abool(a))),
-            Token::Identifier(i) => Ok(Expr::Identifier(Iden(if self.tdark {
-                i.replace("lang", "script")
-            } else {
-                i
-            }))),
-            Token::Nul => Ok(Expr::Literal(Value::Nul)),
+            Token::Boolean(b) => Ok(Expr::new(ExprKind::Literal(Value::Bool(b)), span)),
+            Token::Integer(i) => Ok(Expr::new(ExprKind::Literal(Value::Int(i)), span)),
+            Token::String(s) => Ok(Expr::new(
+                ExprKind::Literal(Value::Str(if self.tdark {
+                    s.replace("lang", "script")
+                } else {
+                    s
+                })),
+                span,
+            )),
+            Token::Aboolean(a) => Ok(Expr::new(ExprKind::Literal(Value::Abool(a)), span)),
+            Token::Identifier(i) => Ok(Expr::new(
+                ExprKind::Identifier(Iden(if self.tdark {
+                    i.replace("lang", "script")
+                } else {
+                    i
+                })),
+                span,
+            )),
+            Token::Nul => Ok(Expr::new(ExprKind::Literal(Value::Nul), span)),
             Token::LogNot => {
                 let next = self.lexer.next();
-                Ok(Expr::Not(Box::new(self.parse_expr(next)?)))
+                let expr = self.parse_expr(next)?;
+                Ok(Expr::new(
+                    ExprKind::Not(Box::new(expr)),
+                    span.start..expr.span.end,
+                ))
             }
             Token::LeftParenthesis => self.parse_paren(),
-            (_, span) => Err(Error::unexpected_token(span)),
+            _ => Err(Error::unexpected_token(span)),
         }
     }
 
