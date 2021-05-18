@@ -162,8 +162,8 @@ impl<'a> Parser<'a> {
             buf = match peek {
                 Some((Token::RightParenthesis, span)) => {
                     let next = self.lexer.next();
-                    break Ok(Expr::new(buf.kind, start..span.end))
-                },
+                    break Ok(Expr::new(buf.kind, start..span.end));
+                }
                 None => break Err(Error::end_of_token_stream()),
                 Some(&t) => self.parse_operation(Some(t), buf)?,
             }
@@ -172,18 +172,10 @@ impl<'a> Parser<'a> {
 
     /// Parse function call
     fn fn_call(&mut self, token: SpannedToken) -> ParseResult {
-        let iden = if let Token::Identifier(i) = token {
-            Iden(i)
-        } else {
-            return Err(Error {
-                kind: ErrorKind::InvalidIdentifier,
-                span: self.lexer.span(),
-            });
-        };
-
         let iden = match token {
-            (Token::Identifier(i), span)
-        }
+            (Token::Identifier(i), _span) => Iden(i),
+            (_, span) => return Err(Error::invalid_identifier(span)),
+        };
 
         self.lexer.next();
         let mut args = Vec::new();
@@ -191,18 +183,21 @@ impl<'a> Parser<'a> {
             let next = self.lexer.next();
 
             // No argument function
-            if matches!(next, Some(Token::RightParenthesis)) {
-                break;
+            if let Some((Token::RightParenthesis, span)) = next {
+                self.require(Token::Semicolon)?;
+                break Ok(Stmt::new(StmtKind::FunctionCall { iden, args }, span).into());
             }
 
             args.push(self.parse_expr(next)?);
             match self.lexer.next() {
-                Some(Token::RightParenthesis) => break,
-                Some(Token::Comma) => continue,
-                _ => return Err(self.unexpected_token(None)),
+                Some((Token::RightParenthesis, span)) => {
+                    self.require(Token::Semicolon)?;
+                    break Ok(Stmt::new(StmtKind::FunctionCall { iden, args }, span).into());
+                }
+                Some((Token::Comma, _)) => continue,
+                Some((_, span)) => break Err(Error::unexpected_token(span)),
+                None => break Err(Error::end_of_token_stream()),
             }
         }
-        self.require(Token::Semicolon)?;
-        Ok(Stmt::FunctionCall { iden, args }.into())
     }
 }
