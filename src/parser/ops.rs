@@ -9,11 +9,11 @@ type ExprResult = Result<Expr, Error>;
 macro_rules! gen_infix {
     ($($fn_name: ident => $type: tt);*$(;)?) => {$(
         /// Generated function for infix operator
-        fn $fn_name(&mut self, left: Expr) -> ExprResult {
+        fn $fn_name(&mut self, left: Expr, span: std::ops::Range<usize>) -> ExprResult {
             self.lexer.next();
             let next = self.lexer.next();
             let right = self.parse_expr(next)?;
-            Ok(Expr::$type { left: Box::new(left), right: Box::new(right) })
+            Ok(Expr::new(ExprKind::$type { left: Box::new(left), right: Box::new(right) }, span))
         })*
     };
 }
@@ -22,8 +22,8 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_ops(&mut self, token: SpannedToken) -> ParseResult {
         // Statements
         match self.lexer.peek() {
-            Some(Token::LeftParenthesis) => return self.fn_call(token),
-            Some(Token::Assignment) => return self.parse_assignment(token),
+            Some((Token::LeftParenthesis, _)) => return self.fn_call(token),
+            Some((Token::Assignment, _)) => return self.parse_assignment(token),
             _ => (),
         }
 
@@ -33,15 +33,15 @@ impl<'a> Parser<'a> {
             let peek = self.lexer.peek().clone();
             buf = match peek {
                 // Print statement
-                Some(Token::Print) => {
+                Some((Token::Print, span)) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
-                    return Ok(Stmt::Print(buf).into());
+                    return Ok(Stmt::new(StmtKind::Print(buf), buf.span.start..span.end).into());
                 }
                 None => return Ok(buf.into()),
 
                 // An expression
-                _ => self.parse_operation(peek, buf)?,
+                _ => self.parse_operation(peek.map(|x| *x), buf)?,
             }
         }
     }
@@ -49,16 +49,16 @@ impl<'a> Parser<'a> {
     /// Match and perform
     pub(super) fn parse_operation(&mut self, token: Option<SpannedToken>, buf: Expr) -> ExprResult {
         match token {
-            Some((Token::Addition, span)) => self.addition(buf),
-            Some((Token::Subtract, span)) => self.subtract(buf),
-            Some((Token::Multiply, span)) => self.multiply(buf),
-            Some((Token::Divide, span)) => self.divide(buf),
-            Some((Token::OpLt, span)) => self.cmplt(buf),
-            Some((Token::OpGt, span)) => self.cmpgt(buf),
-            Some((Token::OpEq, span)) => self.cmpeq(buf),
-            Some((Token::OpNeq, span)) => self.cmpneq(buf),
-            Some((Token::LogAnd, span)) => self.logand(buf),
-            Some((Token::LogOr, span)) => self.logor(buf),
+            Some((Token::Addition, span)) => self.addition(buf, span),
+            Some((Token::Subtract, span)) => self.subtract(buf, span),
+            Some((Token::Multiply, span)) => self.multiply(buf, span),
+            Some((Token::Divide, span)) => self.divide(buf, span),
+            Some((Token::OpLt, span)) => self.cmplt(buf, span),
+            Some((Token::OpGt, span)) => self.cmpgt(buf, span),
+            Some((Token::OpEq, span)) => self.cmpeq(buf, span),
+            Some((Token::OpNeq, span)) => self.cmpneq(buf, span),
+            Some((Token::LogAnd, span)) => self.logand(buf, span),
+            Some((Token::LogOr, span)) => self.logor(buf, span),
             Some((Token::LeftParenthesis, span)) | Some((_, span)) => {
                 Err(Error::unexpected_token(span))
             }
@@ -71,13 +71,9 @@ impl<'a> Parser<'a> {
         self.lexer.next(); // Eat
 
         // Extract identifier
-        let iden = if let Token::Identifier(i) = token {
-            Iden(i)
-        } else {
-            return Err(Error {
-                kind: ErrorKind::InvalidIdentifier,
-                span: self.lexer.span(),
-            });
+        let iden = match token {
+            (Token::Identifier(i), _span) => Iden(i),
+            (_, span) => return Err(Error::invalid_identifier(span)),
         };
 
         let next = self.lexer.next();
@@ -86,20 +82,16 @@ impl<'a> Parser<'a> {
         loop {
             let peek = self.lexer.peek().clone();
             value = match peek {
-                Some(Token::Semicolon) => break,
-                None => {
-                    return Err(Error {
-                        kind: ErrorKind::EndOfTokenStream,
-                        span: self.lexer.span(),
-                    })
+                Some((Token::Semicolon, span)) => {
+                    self.lexer.next();
+                    break Ok(
+                        Stmt::new(StmtKind::VarAssignment { iden, value }, start..span.end).into(),
+                    );
                 }
-                Some(t) => self.parse_operation(Some(t), value)?,
+                None => break Err(Error::end_of_token_stream()),
+                Some(&t) => self.parse_operation(Some(t), value)?,
             };
         }
-
-        self.lexer.next();
-
-        Ok(Stmt::VarAssignment { iden, value }.into())
     }
     // Generate infix
     gen_infix! {
@@ -196,7 +188,7 @@ impl<'a> Parser<'a> {
                 }
                 Some((Token::Comma, _)) => continue,
                 Some((_, span)) => break Err(Error::unexpected_token(span)),
-                None => break Err(Error::end_of_token_stream()),
+                None => (),
             }
         }
     }
