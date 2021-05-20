@@ -11,4 +11,7 @@ pub enum ErrorKind {
     SyntaxError(String),
     EndOfTokenStream,
     InvalidIdentifier,
+    UnknownVariable(String),
+    MeloVariable(String),
+    TypeError(String),
 }

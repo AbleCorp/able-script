@@ -3,6 +3,7 @@
 mod base_55;
 mod brian;
 mod error;
+mod interpret;
 mod lexer;
 mod parser;
 mod repl;
@@ -50,7 +51,7 @@ fn main() {
         }
         None => {
             println!(
-                "Hi [AbleScript {}] - AST Printer",
+                "Hi [AbleScript {}] - AST Printer & Interpreter",
                 env!("CARGO_PKG_VERSION")
             );
             repl::repl();
