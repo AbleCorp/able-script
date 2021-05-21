@@ -1,10 +1,11 @@
 use logos::Source;
 use rustyline::Editor;
 
-use crate::parser::Parser;
+use crate::{interpret::Scope, parser::Parser};
 
 pub fn repl() {
     let mut rl = Editor::<()>::new();
+    let mut ctx = Scope::new();
     loop {
         let readline = rl.readline(":: ");
         match readline {
@@ -16,7 +17,10 @@ pub fn repl() {
                 let mut parser = Parser::new(&line);
                 let ast = parser.init();
                 match ast {
-                    Ok(ast) => println!("{:?}", ast),
+                    Ok(ast) => {
+                        println!("{:?}", ast);
+                        println!("{:?}", ctx.eval_items(&ast));
+                    },
                     Err(e) => {
                         println!(
                             "Error `{:?}` occured at span: {:?} = `{:?}`",

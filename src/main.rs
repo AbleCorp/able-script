@@ -3,12 +3,14 @@
 mod base_55;
 mod brian;
 mod error;
+mod interpret;
 mod lexer;
 mod parser;
 mod repl;
 mod variables;
 
 use clap::{App, Arg};
+use interpret::Scope;
 use logos::Source;
 use parser::Parser;
 
@@ -37,7 +39,11 @@ fn main() {
             let mut parser = Parser::new(&source);
             let ast = parser.init();
             match ast {
-                Ok(ast) => println!("{:#?}", ast),
+                Ok(ast) => {
+                    println!("{:#?}", ast);
+                    let mut ctx = Scope::new();
+                    println!("{:?}", ctx.eval_items(&ast));
+                }
                 Err(e) => {
                     println!(
                         "Error `{:?}` occured at span: {:?} = `{:?}`",
@@ -50,7 +56,7 @@ fn main() {
         }
         None => {
             println!(
-                "Hi [AbleScript {}] - AST Printer",
+                "Hi [AbleScript {}] - AST Printer & Interpreter",
                 env!("CARGO_PKG_VERSION")
             );
             repl::repl();
