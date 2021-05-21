@@ -56,10 +56,9 @@ impl TryFrom<Value> for i32 {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if let Value::Int(i) = value {
-            Ok(i)
-        } else {
-            Err(Error {
+        match value {
+            Value::Int(i) => Ok(i),
+            _ => Err(Error {
                 kind: ErrorKind::TypeError(format!("Expected int, got {}", value)),
                 // TODO: either add some kind of metadata to `Value`
                 // so we can tell where the value came from and assign
@@ -67,7 +66,7 @@ impl TryFrom<Value> for i32 {
                 // `error::Error` struct so we can omit the `position`
                 // when using some error kinds.
                 position: 0..0,
-            })
+            }),
         }
     }
 }
@@ -76,13 +75,13 @@ impl TryFrom<Value> for bool {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if let Value::Bool(b) = value {
-            Ok(b)
-        } else {
-            Err(Error {
+        match value {
+            Value::Bool(b) => Ok(b),
+            Value::Abool(b) => Ok(b.into()),
+            _ => Err(Error {
                 kind: ErrorKind::TypeError(format!("Expected bool, got {}", value)),
                 position: 0..0,
-            })
+            }),
         }
     }
 }
