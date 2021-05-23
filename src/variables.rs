@@ -71,17 +71,23 @@ impl TryFrom<Value> for i32 {
     }
 }
 
-impl TryFrom<Value> for bool {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
+// Coercions from a value to a boolean always succeed, so every value
+// can be used in an `if` statement. C does things that way, so how
+// could it possibly be a bad idea?
+impl From<Value> for bool {
+    fn from(value: Value) -> Self {
         match value {
-            Value::Bool(b) => Ok(b),
-            Value::Abool(b) => Ok(b.into()),
-            _ => Err(Error {
-                kind: ErrorKind::TypeError(format!("Expected bool, got {}", value)),
-                position: 0..0,
-            }),
+            // Booleans and abooleans have a trivial conversion.
+            Value::Bool(b) => b,
+            Value::Abool(b) => b.into(),
+            // The empty string is falsey, other strings are truthy.
+            Value::Str(s) => s.len() != 0,
+            // 0 is falsey, nonzero is truthy.
+            Value::Int(x) => x != 0,
+            // And nul is truthy as a symbol of the fact that the
+            // deep, fundamental truth of this world is nothing but
+            // the eternal void.
+            Value::Nul => true,
         }
     }
 }

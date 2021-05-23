@@ -21,7 +21,6 @@ use crate::{
 pub struct Scope {
     /// The mapping from variable names to values.
     variables: HashMap<String, Variable>,
-
     // In the future, this will store functio definitions, a link to a
     // parent scope (so we can have nested scopes), and possibly other
     // information.
@@ -82,13 +81,13 @@ impl Scope {
             }
             Eq { left, right } => Bool(self.eval_expr(left)? == self.eval_expr(right)?),
             Neq { left, right } => Bool(self.eval_expr(left)? != self.eval_expr(right)?),
-            And { left, right } => Bool(
-                bool::try_from(self.eval_expr(left)?)? && bool::try_from(self.eval_expr(right)?)?,
-            ),
-            Or { left, right } => Bool(
-                bool::try_from(self.eval_expr(left)?)? || bool::try_from(self.eval_expr(right)?)?,
-            ),
-            Not(expr) => Bool(!bool::try_from(self.eval_expr(expr)?)?),
+            And { left, right } => {
+                Bool(bool::from(self.eval_expr(left)?) && bool::from(self.eval_expr(right)?))
+            }
+            Or { left, right } => {
+                Bool(bool::from(self.eval_expr(left)?) || bool::from(self.eval_expr(right)?))
+            }
+            Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
             Literal(value) => value.clone(),
             Identifier(Iden(name)) => self
                 .variables
@@ -117,11 +116,66 @@ impl Scope {
         match stmt {
             Stmt::Print(expr) => {
                 println!("{}", self.eval_expr(expr)?);
-                Ok(())
             }
-            _ => {
-                todo!()
+            Stmt::VariableDeclaration { iden, init } => {
+                self.variables.insert(
+                    iden.0.clone(),
+                    Variable {
+                        melo: false,
+                        value: match init {
+                            Some(init) => self.eval_expr(init)?,
+                            None => Value::Nul,
+                        },
+                    },
+                );
+            }
+            Stmt::FunctionDeclaration {
+                iden: _,
+                args: _,
+                body: _,
+            } => todo!(),
+            Stmt::BfFDeclaration { iden: _, body: _ } => todo!(),
+            Stmt::If { cond, body } => {
+                if self.eval_expr(cond)?.into() {
+                    self.eval_items(body)?;
+                }
+            }
+            Stmt::FunctionCall { iden: _, args: _ } => todo!(),
+            Stmt::Loop { body } => {
+                loop {
+                    // For now, loops run forever until they reach an
+                    // error.
+                    self.eval_items(body)?;
+                }
+            }
+            Stmt::VarAssignment { iden, value } => {
+                let value = self.eval_expr(value)?;
+                let record = self.variables.get_mut(&iden.0).ok_or_else(|| Error {
+                    kind: ErrorKind::UnknownVariable(iden.0.clone()),
+                    position: 0..0,
+                })?;
+
+                if record.melo {
+                    return Err(Error {
+                        kind: ErrorKind::MeloVariable(iden.0.clone()),
+                        position: 0..0,
+                    });
+                }
+
+                record.value = value;
+            }
+            Stmt::Break => todo!(),
+            Stmt::HopBack => todo!(),
+            Stmt::Melo(iden) => {
+                let record = self.variables.get_mut(&iden.0).ok_or_else(|| Error {
+                    kind: ErrorKind::UnknownVariable(iden.0.clone()),
+                    position: 0..0,
+                })?;
+
+                record.melo = true;
             }
         }
+
+        Ok(())
     }
 }
