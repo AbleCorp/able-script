@@ -148,7 +148,7 @@ pub enum Token {
     #[token(",")]
     Comma,
 
-    #[regex(r"#.*")]
+    #[regex(r"owo.*")]
     Comment,
 
     // Operators
@@ -186,7 +186,7 @@ pub enum Token {
     #[token("|")]
     LogOr,
 
-    #[token("!")]
+    #[token("!|aint")] // also add aint as a not keyword
     LogNot,
 
     /// Base52 based character ('a')
