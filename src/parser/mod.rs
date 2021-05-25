@@ -100,7 +100,7 @@ impl<'source> Parser<'source> {
             // Prefix keywords
             // Melo - ban variable from next usage (runtime error)
             (Token::Melo, span) => {
-                let (_, span) = self.lexer.next().unwrap();
+                self.lexer.next();
                 let (iden, id_span) = self.require_iden()?;
                 self.require(Token::Semicolon)?;
                 Ok(Stmt {
@@ -119,13 +119,13 @@ impl<'source> Parser<'source> {
     /// `var [iden] = [literal];`
     fn variable_declaration(&mut self) -> ParseResult {
         let (_, span) = self.lexer.next().unwrap();
-        let (iden, _) = self.require_iden()?;
+        let (iden, iden_span) = self.require_iden()?;
 
         let peek = self.lexer.peek().clone();
-        let init = match peek {
+        let (init, end_pos) = match peek {
             Some((Token::Semicolon, _)) => {
-                self.lexer.next();
-                None
+                 self.lexer.next();
+                (None, iden_span.end)
             }
             Some((Token::Assignment, _)) => {
                 self.lexer.next();
@@ -140,7 +140,8 @@ impl<'source> Parser<'source> {
                     };
                 }
                 self.lexer.next();
-                Some(value)
+                let val_end = value.span.end;
+                (Some(value), val_end)
             }
             Some((_, span)) => return Err(Error::unexpected_token(span.clone())),
             None => return Err(Error::end_of_token_stream()),
@@ -148,7 +149,7 @@ impl<'source> Parser<'source> {
 
         Ok(Stmt {
             kind: StmtKind::VariableDeclaration { iden, init },
-            span: span.start..0, // TODO: Fix span
+            span: span.start..end_pos,
         }
         .into())
     }

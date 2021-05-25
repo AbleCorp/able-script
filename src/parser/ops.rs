@@ -13,7 +13,8 @@ macro_rules! gen_infix {
             self.lexer.next();
             let next = self.lexer.next();
             let right = self.parse_expr(next)?;
-            Ok(Expr::new(ExprKind::$type { left: Box::new(left), right: Box::new(right) }, span))
+            let end_pos = right.span.end;
+            Ok(Expr::new(ExprKind::$type { left: Box::new(left), right: Box::new(right) }, span.start..end_pos))
         })*
     };
 }
@@ -43,24 +44,25 @@ impl<'a> Parser<'a> {
                 None => return Ok(buf.into()),
 
                 // An expression
-                _ => self.parse_operation(peek.map(|x| x), buf)?,
+                _ => self.parse_operation(peek, buf)?,
             }
         }
     }
 
     /// Match and perform
     pub(super) fn parse_operation(&mut self, token: Option<SpannedToken>, buf: Expr) -> ExprResult {
+        let buf_start = buf.span.start;
         match token {
-            Some((Token::Addition, span)) => self.addition(buf, span),
-            Some((Token::Subtract, span)) => self.subtract(buf, span),
-            Some((Token::Multiply, span)) => self.multiply(buf, span),
-            Some((Token::Divide, span)) => self.divide(buf, span),
-            Some((Token::OpLt, span)) => self.cmplt(buf, span),
-            Some((Token::OpGt, span)) => self.cmpgt(buf, span),
-            Some((Token::OpEq, span)) => self.cmpeq(buf, span),
-            Some((Token::OpNeq, span)) => self.cmpneq(buf, span),
-            Some((Token::LogAnd, span)) => self.logand(buf, span),
-            Some((Token::LogOr, span)) => self.logor(buf, span),
+            Some((Token::Addition, span)) => self.addition(buf, buf_start..span.end),
+            Some((Token::Subtract, span)) => self.subtract(buf, buf_start..span.end),
+            Some((Token::Multiply, span)) => self.multiply(buf, buf_start..span.end),
+            Some((Token::Divide, span)) => self.divide(buf, buf_start..span.end),
+            Some((Token::OpLt, span)) => self.cmplt(buf, buf_start..span.end),
+            Some((Token::OpGt, span)) => self.cmpgt(buf, buf_start..span.end),
+            Some((Token::OpEq, span)) => self.cmpeq(buf, buf_start..span.end),
+            Some((Token::OpNeq, span)) => self.cmpneq(buf, buf_start..span.end),
+            Some((Token::LogAnd, span)) => self.logand(buf, buf_start..span.end),
+            Some((Token::LogOr, span)) => self.logor(buf, buf_start..span.end),
             Some((Token::LeftParenthesis, span)) | Some((_, span)) => {
                 Err(Error::unexpected_token(span))
             }
@@ -95,6 +97,7 @@ impl<'a> Parser<'a> {
             };
         }
     }
+    
     // Generate infix
     gen_infix! {
         addition => Add;
