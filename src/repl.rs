@@ -16,7 +16,7 @@ pub fn repl() {
                 let mut parser = Parser::new(&line);
                 let ast = parser.init();
                 match ast {
-                    Ok(ast) => println!("{:?}", ast),
+                    Ok(ast) => println!("{:#?}", ast),
                     Err(e) => {
                         println!(
                             "Error `{:?}` occured at span: {:?} = `{:?}`",
