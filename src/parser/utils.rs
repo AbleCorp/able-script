@@ -55,14 +55,15 @@ impl<'a> Parser<'a> {
         let mut body = Vec::new();
         loop {
             let token = {
-                match self.lexer.next() {
+                match self.lexer.peek().cloned() {
                     Some(t) => t,
                     None => unimplemented!(),
                 }
             };
 
             if let (Token::RightBrace, span) = token {
-                break Ok((body, span.end))
+                self.lexer.next();
+                break Ok((body, span.end));
             }
 
             body.push(self.parse_item(Some(token))?);

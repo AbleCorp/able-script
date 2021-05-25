@@ -1,9 +1,5 @@
-use std::fmt;
-use std::ops::Range;
-
 use logos::Span;
-
-use crate::lexer::Token;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Error {

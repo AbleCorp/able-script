@@ -1,4 +1,4 @@
-mod item;
+pub mod item;
 mod ops;
 mod utils;
 
@@ -6,7 +6,7 @@ use item::Item;
 use logos::Logos;
 
 use crate::{
-    error::{Error, ErrorKind},
+    error::Error,
     lexer::SpannedToken,
     parser::item::{Expr, ExprKind, Stmt, StmtKind},
     variables::Value,
@@ -121,10 +121,10 @@ impl<'source> Parser<'source> {
         let (_, span) = self.lexer.next().unwrap();
         let (iden, iden_span) = self.require_iden()?;
 
-        let peek = self.lexer.peek().clone();
+        let peek = self.lexer.peek();
         let (init, end_pos) = match peek {
             Some((Token::Semicolon, _)) => {
-                 self.lexer.next();
+                self.lexer.next();
                 (None, iden_span.end)
             }
             Some((Token::Assignment, _)) => {

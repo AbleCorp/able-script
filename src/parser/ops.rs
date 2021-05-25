@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
             };
         }
     }
-    
+
     // Generate infix
     gen_infix! {
         addition => Add;
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
 
     /// Ensure that input token is an expression
     pub(super) fn parse_expr(&mut self, token: Option<SpannedToken>) -> ExprResult {
-        let (token, span) = token.ok_or(Error::end_of_token_stream())?;
+        let (token, span) = token.ok_or_else(Error::end_of_token_stream)?;
 
         match token {
             Token::Boolean(b) => Ok(Expr::new(ExprKind::Literal(Value::Bool(b)), span)),
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
             let peek = self.lexer.peek().cloned();
             buf = match peek {
                 Some((Token::RightParenthesis, span)) => {
-                    let next = self.lexer.next();
+                    self.lexer.next();
                     break Ok(Expr::new(buf.kind, start..span.end));
                 }
                 None => break Err(Error::end_of_token_stream()),
