@@ -368,6 +368,6 @@ mod tests {
                 span: 25..35,
             }),
         ];
-        // assert_eq!(ast, expected)
+        assert_eq!(ast, expected)
     }
 }
