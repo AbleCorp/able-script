@@ -34,11 +34,11 @@ impl<'source> Parser<'source> {
 
     pub fn init(&mut self) -> Result<Vec<Item>, Error> {
         loop {
-            let token = self.lexer.next();
+            let token = self.lexer.peek().cloned();
 
             match token {
-                Some(Token::Comment) => continue,
-                Some(Token::TDark) => {
+                Some((Token::Comment, _)) => continue,
+                Some((Token::TDark, _)) => {
                     let mut block = self.tdark_block()?;
                     self.ast.append(&mut block);
                 }
@@ -57,49 +57,60 @@ impl<'source> Parser<'source> {
         }
 
         let token = token.unwrap();
-        let start = self.lexer.span().start;
 
         match token {
-            Token::Identifier(_)
-            | Token::Aboolean(_)
-            | Token::Boolean(_)
-            | Token::Integer(_)
-            | Token::String(_)
-            | Token::Nul
-            | Token::LeftParenthesis
-            | Token::Assignment
-            | Token::LogNot => self.parse_ops(token),
+            (Token::Identifier(_), _)
+            | (Token::Aboolean(_), _)
+            | (Token::Boolean(_), _)
+            | (Token::Integer(_), _)
+            | (Token::String(_), _)
+            | (Token::Nul, _)
+            | (Token::LeftParenthesis, _)
+            | (Token::Assignment, _)
+            | (Token::LogNot, _) => self.parse_ops(token),
 
             // Control flow
-            Token::If => self.if_cond(),
-            Token::Loop => self.loop_block(),
+            (Token::If, _) => self.if_cond(),
+            (Token::Loop, _) => self.loop_block(),
 
-            Token::HopBack => {
+            (Token::HopBack, span) => {
+                self.lexer.next();
                 self.require(Token::Semicolon)?;
-                Ok(Stmt::HopBack.into())
+                Ok(Stmt {
+                    kind: StmtKind::HopBack,
+                    span,
+                }
+                .into())
             }
-            Token::Break => {
+            (Token::Break, span) => {
+                self.lexer.next();
                 self.require(Token::Semicolon)?;
-                Ok(Stmt::Break.into())
+                Ok(Stmt {
+                    kind: StmtKind::Break,
+                    span,
+                }
+                .into())
             }
 
             // Declarations
-            Token::Variable => self.variable_declaration(),
-            Token::Function => self.function_declaration(),
-            Token::BfFunction => self.bff_declaration(),
+            (Token::Variable, _) => self.variable_declaration(),
+            (Token::Function, _) => self.function_declaration(),
+            (Token::BfFunction, _) => self.bff_declaration(),
 
             // Prefix keywords
             // Melo - ban variable from next usage (runtime error)
-            Token::Melo => {
-                let e = self.require_iden()?;
+            (Token::Melo, span) => {
+                let (_, span) = self.lexer.next().unwrap();
+                let (iden, id_span) = self.require_iden()?;
                 self.require(Token::Semicolon)?;
-                Ok(Stmt::Melo(e).into())
+                Ok(Stmt {
+                    kind: StmtKind::Melo(iden),
+                    span: span.start..id_span.end,
+                }
+                .into())
             }
 
-            _ => Err(Error {
-                kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
-                span: start..self.lexer.span().end,
-            }),
+            (_, span) => Err(Error::unexpected_token(span)),
         }
     }
 
@@ -107,75 +118,79 @@ impl<'source> Parser<'source> {
     ///
     /// `var [iden] = [literal];`
     fn variable_declaration(&mut self) -> ParseResult {
-        let iden = self.require_iden()?;
+        let (_, span) = self.lexer.next().unwrap();
+        let (iden, _) = self.require_iden()?;
 
         let peek = self.lexer.peek().clone();
         let init = match peek {
-            Some(Token::Semicolon) => {
+            Some((Token::Semicolon, _)) => {
                 self.lexer.next();
                 None
             }
-            Some(Token::Assignment) => {
+            Some((Token::Assignment, _)) => {
                 self.lexer.next();
                 let next = self.lexer.next();
                 let mut value = self.parse_expr(next)?;
                 loop {
-                    let peek = self.lexer.peek().clone();
+                    let peek = self.lexer.peek().cloned();
                     value = match peek {
-                        Some(Token::Semicolon) => break,
-                        None => {
-                            return Err(Error {
-                                kind: ErrorKind::EndOfTokenStream,
-                                span: self.lexer.span(),
-                            })
-                        }
-                        Some(t) => self.parse_operation(Some(t), value)?,
+                        Some((Token::Semicolon, _)) => break,
+                        None => return Err(Error::end_of_token_stream()),
+                        Some(t) => self.parse_operation(Some(t.clone()), value)?,
                     };
                 }
                 self.lexer.next();
                 Some(value)
             }
-            _ => {
-                return Err(Error {
-                    kind: ErrorKind::SyntaxError("Unexpected token".to_owned()),
-                    span: self.lexer.span(),
-                })
-            }
+            Some((_, span)) => return Err(Error::unexpected_token(span.clone())),
+            None => return Err(Error::end_of_token_stream()),
         };
 
-        Ok(Stmt::VariableDeclaration { iden, init }.into())
+        Ok(Stmt {
+            kind: StmtKind::VariableDeclaration { iden, init },
+            span: span.start..0, // TODO: Fix span
+        }
+        .into())
     }
 
     /// Declare function
     ///
     /// `functio [iden] ([expr], [expr]) { ... }
     fn function_declaration(&mut self) -> ParseResult {
-        let iden = self.require_iden()?;
+        let (_, span) = self.lexer.next().unwrap();
+        let (iden, _) = self.require_iden()?;
 
         self.require(Token::LeftParenthesis)?;
         let mut args = vec![];
         loop {
             let next = self.lexer.next();
             match next {
-                Some(Token::RightParenthesis) => break,
-                Some(Token::Identifier(i)) => args.push(Iden(i)),
-                _ => return Err(self.unexpected_token(None)),
+                // TODO(ondra05): Span those
+                Some((Token::RightParenthesis, _)) => break,
+                Some((Token::Identifier(i), _)) => args.push(Iden(i)),
+                Some((_, span)) => return Err(Error::unexpected_token(span)),
+                None => return Err(Error::end_of_token_stream()),
             }
         }
 
         self.require(Token::LeftBrace)?;
 
         // Parse function body
-        let body = self.parse_body()?;
+        let (body, end) = self.parse_body()?;
 
-        Ok(Stmt::FunctionDeclaration { iden, args, body }.into())
+        Ok(Stmt {
+            kind: StmtKind::FunctionDeclaration { iden, args, body },
+            span: span.start..end,
+        }
+        .into())
     }
 
     /// Declare BF FFI Function
     ///
     /// `bff [iden] { ... }`
     fn bff_declaration(&mut self) -> ParseResult {
-        let iden = self.require_iden()?;
+        let (_, span) = self.lexer.next().unwrap();
+        let (iden, _) = self.require_iden()?;
         self.require(Token::LeftBrace)?;
 
         let mut body = String::new();
@@ -183,48 +198,58 @@ impl<'source> Parser<'source> {
             let token = {
                 match self.lexer.next() {
                     Some(t) => t,
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::EndOfTokenStream,
-                            span: self.lexer.span(),
-                        })
-                    }
+                    None => return Err(Error::end_of_token_stream()),
                 }
             };
 
             body.push_str(match token {
-                Token::OpGt
-                | Token::OpLt
-                | Token::Addition
-                | Token::Subtract
-                | Token::FullStop
-                | Token::Comma
-                | Token::LeftBracket
-                | Token::RightBracket => self.lexer.slice(),
-                Token::RightBrace => break,
-                _ => return Err(self.unexpected_token(None)),
+                (Token::OpGt, _) => ">",
+                (Token::OpLt, _) => "<",
+                (Token::Addition, _) => "+",
+                (Token::Subtract, _) => "-",
+                (Token::FullStop, _) => ".",
+                (Token::Comma, _) => ",",
+                (Token::LeftBracket, _) => "[",
+                (Token::RightBracket, _) => "]",
+                (Token::RightBrace, end) => {
+                    break Ok(Stmt {
+                        kind: StmtKind::BfFDeclaration { iden, body },
+                        span: span.start..end.end,
+                    }
+                    .into())
+                }
+                (_, span) => return Err(Error::unexpected_token(span)),
             });
         }
-        Ok(Stmt::BfFDeclaration { iden, body }.into())
     }
 
     /// Parse If-stmt
     pub fn if_cond(&mut self) -> ParseResult {
-        self.require(Token::LeftParenthesis)?;
-        let cond = self.parse_paren()?;
+        let (_, span) = self.lexer.next().unwrap(); // I was hungry :(
+        let (_, cond_span) = self.require(Token::LeftParenthesis)?;
+        let cond = self.parse_paren(cond_span.start)?;
         self.require(Token::LeftBrace)?;
 
-        let body = self.parse_body()?;
+        let (body, end_span) = self.parse_body()?;
 
-        Ok(Stmt::If { cond, body }.into())
+        Ok(Stmt {
+            kind: StmtKind::If { cond, body },
+            span: span.start..end_span,
+        }
+        .into())
     }
 
     /// Parse loop
     pub fn loop_block(&mut self) -> ParseResult {
+        let (_, span) = self.lexer.next().unwrap();
         self.require(Token::LeftBrace)?;
-        let body = self.parse_body()?;
+        let (body, end) = self.parse_body()?;
 
-        Ok(Stmt::Loop { body }.into())
+        Ok(Stmt {
+            kind: StmtKind::Loop { body },
+            span: span.start..end,
+        }
+        .into())
     }
 
     /// T-Dark block parsing
@@ -236,16 +261,11 @@ impl<'source> Parser<'source> {
             let token = {
                 match self.lexer.next() {
                     Some(t) => t,
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::EndOfTokenStream,
-                            span: self.lexer.span(),
-                        })
-                    }
+                    None => return Err(Error::end_of_token_stream()),
                 }
             };
 
-            if token == Token::RightBrace {
+            if matches!(token, (Token::RightBrace, _)) {
                 break;
             }
             body.push(self.parse_item(Some(token))?);

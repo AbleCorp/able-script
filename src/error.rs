@@ -51,11 +51,11 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match self.kind {
-            ErrorKind::SyntaxError(e) => &format!("Syntax Error: {}", e),
-            ErrorKind::EndOfTokenStream => "Unexpected end of source code",
-            ErrorKind::InvalidIdentifier => "Invalid identifier",
-            ErrorKind::UnexpectedToken => "Unexpected token",
+        let msg = match &self.kind {
+            ErrorKind::SyntaxError(e) => format!("Syntax Error: {}", e.clone()),
+            ErrorKind::EndOfTokenStream => "Unexpected end of source code".to_owned(),
+            ErrorKind::InvalidIdentifier => "Invalid identifier".to_owned(),
+            ErrorKind::UnexpectedToken => "Unexpected token".to_owned(),
         };
 
         write!(f, "{} on {:?}", msg, self.span)

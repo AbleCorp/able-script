@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(super) fn parse_body(&mut self) -> Result<Vec<Item>, Error> {
+    pub(super) fn parse_body(&mut self) -> Result<(Vec<Item>, usize), Error> {
         let mut body = Vec::new();
         loop {
             let token = {
@@ -61,13 +61,11 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            if matches!(token, (Token::RightBrace, _)) {
-                break;
+            if let (Token::RightBrace, span) = token {
+                break Ok((body, span.end))
             }
 
             body.push(self.parse_item(Some(token))?);
         }
-
-        Ok(body)
     }
 }

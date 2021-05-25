@@ -20,6 +20,7 @@ macro_rules! gen_infix {
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_ops(&mut self, token: SpannedToken) -> ParseResult {
+        self.lexer.next();
         // Statements
         match self.lexer.peek() {
             Some((Token::LeftParenthesis, _)) => return self.fn_call(token),
@@ -30,18 +31,19 @@ impl<'a> Parser<'a> {
         let mut buf: Expr = self.parse_expr(Some(token))?;
 
         loop {
-            let peek = self.lexer.peek().clone();
+            let peek = self.lexer.peek().cloned();
             buf = match peek {
                 // Print statement
                 Some((Token::Print, span)) => {
                     self.lexer.next();
                     self.require(Token::Semicolon)?;
-                    return Ok(Stmt::new(StmtKind::Print(buf), buf.span.start..span.end).into());
+                    let start_pos = buf.span.start;
+                    return Ok(Stmt::new(StmtKind::Print(buf), start_pos..span.end).into());
                 }
                 None => return Ok(buf.into()),
 
                 // An expression
-                _ => self.parse_operation(peek.map(|x| *x), buf)?,
+                _ => self.parse_operation(peek.map(|x| x), buf)?,
             }
         }
     }
@@ -80,7 +82,7 @@ impl<'a> Parser<'a> {
         let mut value = self.parse_expr(next)?;
 
         loop {
-            let peek = self.lexer.peek().clone();
+            let peek = self.lexer.peek().cloned();
             value = match peek {
                 Some((Token::Semicolon, span)) => {
                     self.lexer.next();
@@ -89,7 +91,7 @@ impl<'a> Parser<'a> {
                     );
                 }
                 None => break Err(Error::end_of_token_stream()),
-                Some(&t) => self.parse_operation(Some(t), value)?,
+                Some(t) => self.parse_operation(Some(t), value)?,
             };
         }
     }
@@ -135,9 +137,10 @@ impl<'a> Parser<'a> {
             Token::LogNot => {
                 let next = self.lexer.next();
                 let expr = self.parse_expr(next)?;
+                let end_pos = expr.span.end;
                 Ok(Expr::new(
                     ExprKind::Not(Box::new(expr)),
-                    span.start..expr.span.end,
+                    span.start..end_pos,
                 ))
             }
             Token::LeftParenthesis => self.parse_paren(span.start),
@@ -150,14 +153,14 @@ impl<'a> Parser<'a> {
         let next = self.lexer.next();
         let mut buf = self.parse_expr(next)?;
         loop {
-            let peek = self.lexer.peek().clone();
+            let peek = self.lexer.peek().cloned();
             buf = match peek {
                 Some((Token::RightParenthesis, span)) => {
                     let next = self.lexer.next();
                     break Ok(Expr::new(buf.kind, start..span.end));
                 }
                 None => break Err(Error::end_of_token_stream()),
-                Some(&t) => self.parse_operation(Some(t), buf)?,
+                Some(t) => self.parse_operation(Some(t), buf)?,
             }
         }
     }
