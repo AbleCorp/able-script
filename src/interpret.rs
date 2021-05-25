@@ -1,10 +1,10 @@
 //! Expression evaluator and statement interpreter.
 //!
 //! To interpret a piece of AbleScript code, you first need to
-//! construct a [Scope], which is responsible for storing the list of
-//! variable and function definitions accessible from an AbleScript
-//! snippet. You can then call [Scope::eval_items] to evaluate or
-//! execute any number of expressions or statements.
+//! construct an [ExecEnv], which is responsible for storing the stack
+//! of local variable and function definitions accessible from an
+//! AbleScript snippet. You can then call [ExecEnv::eval_items] to
+//! evaluate or execute any number of expressions or statements.
 
 #[deny(missing_docs)]
 use std::collections::HashMap;
@@ -16,33 +16,49 @@ use crate::{
     variables::{Value, Variable},
 };
 
-/// A set of visible variable and function definitions, which serves
-/// as a context in which expressions can be evaluated.
-pub struct Scope {
-    /// The mapping from variable names to values.
-    variables: HashMap<String, Variable>,
-    // In the future, this will store functio definitions, a link to a
-    // parent scope (so we can have nested scopes), and possibly other
-    // information.
+/// An environment for executing AbleScript code.
+pub struct ExecEnv {
+    /// The stack, ordered such that `stack[stack.len() - 1]` is the
+    /// top-most (newest) stack frame, and `stack[0]` is the
+    /// bottom-most (oldest) stack frame.
+    stack: Vec<Scope>,
 }
 
-impl Scope {
+/// A set of visible variable and function definitions, which serves
+/// as a context in which expressions can be evaluated.
+#[derive(Default)]
+struct Scope {
+    /// The mapping from variable names to values.
+    variables: HashMap<String, Variable>,
+    // In the future, this will store functio definitions and possibly
+    // other information.
+}
+
+impl ExecEnv {
     /// Create a new Scope with no predefined variable definitions or
     /// other information.
     pub fn new() -> Self {
         Self {
-            variables: HashMap::new(),
+            stack: Default::default(),
         }
     }
 
-    /// Evaluate a set of Items. Returns the value of the last Item
-    /// evaluated, or an error if one or more of the Items failed to
-    /// evaluate.
+    /// Evaluate a set of Items in their own stack frame. Return the
+    /// value of the last Item evaluated, or an error if one or more
+    /// of the Items failed to evaluate.
     pub fn eval_items(&mut self, items: &[Item]) -> Result<Value, Error> {
-        items
+        let init_depth = self.stack.len();
+
+        self.stack.push(Default::default());
+        let res = items
             .iter()
             .map(|item| self.eval_item(item))
-            .try_fold(Value::Nul, |_, result| result)
+            .try_fold(Value::Nul, |_, result| result);
+        self.stack.pop();
+
+        // Invariant: stack size must have net 0 change.
+        debug_assert_eq!(self.stack.len(), init_depth);
+        res
     }
 
     /// Evaluate a single Item, returning its value or an error.
@@ -89,25 +105,7 @@ impl Scope {
             }
             Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
             Literal(value) => value.clone(),
-            Identifier(Iden(name)) => self
-                .variables
-                .get(name)
-                .ok_or_else(|| Error {
-                    kind: ErrorKind::UnknownVariable(name.to_owned()),
-                    // TODO: figure out some way to avoid this 0..0
-                    // dumbness
-                    position: 0..0,
-                })
-                .and_then(|var| {
-                    if !var.melo {
-                        Ok(var.value.clone())
-                    } else {
-                        Err(Error {
-                            kind: ErrorKind::MeloVariable(name.to_owned()),
-                            position: 0..0,
-                        })
-                    }
-                })?,
+            Identifier(Iden(name)) => self.get_var(name)?.value.clone(),
         })
     }
 
@@ -118,14 +116,19 @@ impl Scope {
                 println!("{}", self.eval_expr(expr)?);
             }
             Stmt::VariableDeclaration { iden, init } => {
-                self.variables.insert(
+                let init = match init {
+                    Some(e) => self.eval_expr(e)?,
+                    None => Value::Nul,
+                };
+
+                // There's always at least one stack frame on the
+                // stack if we're evaluating something, so we can
+                // `unwrap` here.
+                self.stack.iter_mut().last().unwrap().variables.insert(
                     iden.0.clone(),
                     Variable {
                         melo: false,
-                        value: match init {
-                            Some(init) => self.eval_expr(init)?,
-                            None => Value::Nul,
-                        },
+                        value: init,
                     },
                 );
             }
@@ -149,33 +152,70 @@ impl Scope {
                 }
             }
             Stmt::VarAssignment { iden, value } => {
-                let value = self.eval_expr(value)?;
-                let record = self.variables.get_mut(&iden.0).ok_or_else(|| Error {
-                    kind: ErrorKind::UnknownVariable(iden.0.clone()),
-                    position: 0..0,
-                })?;
-
-                if record.melo {
-                    return Err(Error {
-                        kind: ErrorKind::MeloVariable(iden.0.clone()),
-                        position: 0..0,
-                    });
-                }
-
-                record.value = value;
+                self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
             }
             Stmt::Break => todo!(),
             Stmt::HopBack => todo!(),
             Stmt::Melo(iden) => {
-                let record = self.variables.get_mut(&iden.0).ok_or_else(|| Error {
-                    kind: ErrorKind::UnknownVariable(iden.0.clone()),
-                    position: 0..0,
-                })?;
-
-                record.melo = true;
+                self.get_var_mut(&iden.0)?.melo = true;
             }
         }
 
         Ok(())
+    }
+
+    /// Get a shared reference to the value of a variable. Throw an
+    /// error if the variable is inaccessible or banned.
+    fn get_var(&self, name: &str) -> Result<&Variable, Error> {
+        match self
+            .stack
+            .iter()
+            .rev()
+            .find_map(|scope| scope.variables.get(name))
+        {
+            Some(var) => {
+                if !var.melo {
+                    Ok(var)
+                } else {
+                    Err(Error {
+                        kind: ErrorKind::MeloVariable(name.to_owned()),
+                        // TODO: figure out some way to avoid this
+                        // 0..0 dumbness
+                        position: 0..0,
+                    })
+                }
+            }
+            None => Err(Error {
+                kind: ErrorKind::UnknownVariable(name.to_owned()),
+                position: 0..0,
+            }),
+        }
+    }
+
+    /// Get a mutable reference to a variable. Throw an error if the
+    /// variable is inaccessible or banned.
+    fn get_var_mut(&mut self, name: &str) -> Result<&mut Variable, Error> {
+        // FIXME: This function is almost exactly the same as get_var.
+        match self
+            .stack
+            .iter_mut()
+            .rev()
+            .find_map(|scope| scope.variables.get_mut(name))
+        {
+            Some(var) => {
+                if !var.melo {
+                    Ok(var)
+                } else {
+                    Err(Error {
+                        kind: ErrorKind::MeloVariable(name.to_owned()),
+                        position: 0..0,
+                    })
+                }
+            }
+            None => Err(Error {
+                kind: ErrorKind::UnknownVariable(name.to_owned()),
+                position: 0..0,
+            }),
+        }
     }
 }
