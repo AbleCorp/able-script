@@ -24,8 +24,8 @@ pub struct ExecEnv {
     stack: Vec<Scope>,
 }
 
-/// A set of visible variable and function definitions, which serves
-/// as a context in which expressions can be evaluated.
+/// A set of visible variable and function definitions in a single
+/// stack frame.
 #[derive(Default)]
 struct Scope {
     /// The mapping from variable names to values.
@@ -34,15 +34,17 @@ struct Scope {
     // other information.
 }
 
-/// The result of successfully executing a set of statements.
-enum ControlFlow {
-    /// The statements evaluated to this value.
+/// The reason a successful series of statements halted.
+enum HaltStatus {
+    /// The last statement in the list evaluated to this value.
     Value(Value),
 
-    /// A "break" statement occurred at the top level.
+    /// A `break` statement occurred and was not caught by a `loop`
+    /// statement.
     Break,
 
-    /// A "hopback" statement occurred at the top level.
+    /// A `hopback` statement occurred and was not caught by a `loop`
+    /// statement.
     Hopback,
 }
 
@@ -57,11 +59,12 @@ impl ExecEnv {
 
     /// Evaluate a set of Items in their own stack frame. Return the
     /// value of the last Item evaluated, or an error if one or more
-    /// of the Items failed to evaluate.
+    /// of the Items failed to evaluate or if a `break` or `hopback`
+    /// statement occurred at the top level.
     pub fn eval_items(&mut self, items: &[Item]) -> Result<Value, Error> {
-        match self.eval_items_cf(items)? {
-            ControlFlow::Value(v) => Ok(v),
-            ControlFlow::Break | ControlFlow::Hopback => Err(Error {
+        match self.eval_items_hs(items)? {
+            HaltStatus::Value(v) => Ok(v),
+            HaltStatus::Break | HaltStatus::Hopback => Err(Error {
                 // It's an error to issue a `break` outside of a
                 // `loop` statement.
                 kind: ErrorKind::TopLevelBreak,
@@ -70,16 +73,19 @@ impl ExecEnv {
         }
     }
 
-    /// The same as `eval_items`, but reports "break" and "hopback"
-    /// exit codes as normal conditions in a ControlFlow enum.
-    fn eval_items_cf(&mut self, items: &[Item]) -> Result<ControlFlow, Error> {
+    /// The same as `eval_items`, but report "break" and "hopback"
+    /// exit codes as normal conditions in a HaltStatus enum.
+    ///
+    /// `interpret`-internal code should typically prefer this
+    /// function over `eval_items`.
+    fn eval_items_hs(&mut self, items: &[Item]) -> Result<HaltStatus, Error> {
         let init_depth = self.stack.len();
 
         self.stack.push(Default::default());
-        let mut final_result = Ok(ControlFlow::Value(Value::Nul));
+        let mut final_result = Ok(HaltStatus::Value(Value::Nul));
         for item in items {
             final_result = self.eval_item(item);
-            if !matches!(final_result, Ok(ControlFlow::Value(_))) {
+            if !matches!(final_result, Ok(HaltStatus::Value(_))) {
                 break;
             }
         }
@@ -91,9 +97,9 @@ impl ExecEnv {
     }
 
     /// Evaluate a single Item, returning its value or an error.
-    fn eval_item(&mut self, item: &Item) -> Result<ControlFlow, Error> {
+    fn eval_item(&mut self, item: &Item) -> Result<HaltStatus, Error> {
         match item {
-            Item::Expr(expr) => self.eval_expr(expr).map(|v| ControlFlow::Value(v)),
+            Item::Expr(expr) => self.eval_expr(expr).map(|v| HaltStatus::Value(v)),
             Item::Stmt(stmt) => self.eval_stmt(stmt),
         }
     }
@@ -139,7 +145,7 @@ impl ExecEnv {
     }
 
     /// Perform the action indicated by a statement.
-    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<ControlFlow, Error> {
+    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<HaltStatus, Error> {
         match stmt {
             Stmt::Print(expr) => {
                 println!("{}", self.eval_expr(expr)?);
@@ -169,33 +175,33 @@ impl ExecEnv {
             Stmt::BfFDeclaration { iden: _, body: _ } => todo!(),
             Stmt::If { cond, body } => {
                 if self.eval_expr(cond)?.into() {
-                    return self.eval_items_cf(body);
+                    return self.eval_items_hs(body);
                 }
             }
             Stmt::FunctionCall { iden: _, args: _ } => todo!(),
             Stmt::Loop { body } => loop {
-                let res = self.eval_items_cf(body)?;
+                let res = self.eval_items_hs(body)?;
                 match res {
-                    ControlFlow::Value(_) => {}
-                    ControlFlow::Break => break,
-                    ControlFlow::Hopback => continue,
+                    HaltStatus::Value(_) => {}
+                    HaltStatus::Break => break,
+                    HaltStatus::Hopback => continue,
                 }
             },
             Stmt::VarAssignment { iden, value } => {
                 self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
             }
             Stmt::Break => {
-                return Ok(ControlFlow::Break);
+                return Ok(HaltStatus::Break);
             }
             Stmt::HopBack => {
-                return Ok(ControlFlow::Hopback);
+                return Ok(HaltStatus::Hopback);
             }
             Stmt::Melo(iden) => {
                 self.get_var_mut(&iden.0)?.melo = true;
             }
         }
 
-        Ok(ControlFlow::Value(Value::Nul))
+        Ok(HaltStatus::Value(Value::Nul))
     }
 
     /// Get a shared reference to the value of a variable. Throw an
@@ -229,7 +235,8 @@ impl ExecEnv {
     /// Get a mutable reference to a variable. Throw an error if the
     /// variable is inaccessible or banned.
     fn get_var_mut(&mut self, name: &str) -> Result<&mut Variable, Error> {
-        // FIXME: This function is almost exactly the same as get_var.
+        // This function is almost exactly 22 lines of duplicated code
+        // from get_var, which I feel like is a bad sign...
         match self
             .stack
             .iter_mut()
