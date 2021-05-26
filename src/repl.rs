@@ -1,11 +1,11 @@
 use logos::Source;
 use rustyline::Editor;
 
-use crate::{interpret::Scope, parser::Parser};
+use crate::{interpret::ExecEnv, parser::Parser};
 
 pub fn repl() {
     let mut rl = Editor::<()>::new();
-    let mut ctx = Scope::new();
+    let mut env = ExecEnv::new();
     loop {
         let readline = rl.readline(":: ");
         match readline {
@@ -19,7 +19,7 @@ pub fn repl() {
                 match ast {
                     Ok(ast) => {
                         println!("{:?}", ast);
-                        println!("{:?}", ctx.eval_items(&ast));
+                        println!("{:?}", env.eval_items(&ast));
                     },
                     Err(e) => {
                         println!(

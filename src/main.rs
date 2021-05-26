@@ -10,7 +10,7 @@ mod repl;
 mod variables;
 
 use clap::{App, Arg};
-use interpret::Scope;
+use interpret::ExecEnv;
 use logos::Source;
 use parser::Parser;
 
@@ -41,8 +41,8 @@ fn main() {
             match ast {
                 Ok(ast) => {
                     println!("{:#?}", ast);
-                    let mut ctx = Scope::new();
-                    println!("{:?}", ctx.eval_items(&ast));
+                    let mut env = ExecEnv::new();
+                    println!("{:?}", env.eval_items(&ast));
                 }
                 Err(e) => {
                     println!(
