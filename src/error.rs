@@ -14,4 +14,5 @@ pub enum ErrorKind {
     UnknownVariable(String),
     MeloVariable(String),
     TypeError(String),
+    TopLevelBreak,
 }

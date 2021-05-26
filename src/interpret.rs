@@ -34,6 +34,18 @@ struct Scope {
     // other information.
 }
 
+/// The result of successfully executing a set of statements.
+enum ControlFlow {
+    /// The statements evaluated to this value.
+    Value(Value),
+
+    /// A "break" statement occurred at the top level.
+    Break,
+
+    /// A "hopback" statement occurred at the top level.
+    Hopback,
+}
+
 impl ExecEnv {
     /// Create a new Scope with no predefined variable definitions or
     /// other information.
@@ -47,25 +59,42 @@ impl ExecEnv {
     /// value of the last Item evaluated, or an error if one or more
     /// of the Items failed to evaluate.
     pub fn eval_items(&mut self, items: &[Item]) -> Result<Value, Error> {
+        match self.eval_items_cf(items)? {
+            ControlFlow::Value(v) => Ok(v),
+            ControlFlow::Break | ControlFlow::Hopback => Err(Error {
+                // It's an error to issue a `break` outside of a
+                // `loop` statement.
+                kind: ErrorKind::TopLevelBreak,
+                position: 0..0,
+            }),
+        }
+    }
+
+    /// The same as `eval_items`, but reports "break" and "hopback"
+    /// exit codes as normal conditions in a ControlFlow enum.
+    fn eval_items_cf(&mut self, items: &[Item]) -> Result<ControlFlow, Error> {
         let init_depth = self.stack.len();
 
         self.stack.push(Default::default());
-        let res = items
-            .iter()
-            .map(|item| self.eval_item(item))
-            .try_fold(Value::Nul, |_, result| result);
+        let mut final_result = Ok(ControlFlow::Value(Value::Nul));
+        for item in items {
+            final_result = self.eval_item(item);
+            if !matches!(final_result, Ok(ControlFlow::Value(_))) {
+                break;
+            }
+        }
         self.stack.pop();
 
         // Invariant: stack size must have net 0 change.
         debug_assert_eq!(self.stack.len(), init_depth);
-        res
+        final_result
     }
 
     /// Evaluate a single Item, returning its value or an error.
-    fn eval_item(&mut self, item: &Item) -> Result<Value, Error> {
+    fn eval_item(&mut self, item: &Item) -> Result<ControlFlow, Error> {
         match item {
-            Item::Expr(expr) => self.eval_expr(expr),
-            Item::Stmt(stmt) => self.eval_stmt(stmt).map(|_| Value::Nul),
+            Item::Expr(expr) => self.eval_expr(expr).map(|v| ControlFlow::Value(v)),
+            Item::Stmt(stmt) => self.eval_stmt(stmt),
         }
     }
 
@@ -110,7 +139,7 @@ impl ExecEnv {
     }
 
     /// Perform the action indicated by a statement.
-    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<(), Error> {
+    fn eval_stmt(&mut self, stmt: &Stmt) -> Result<ControlFlow, Error> {
         match stmt {
             Stmt::Print(expr) => {
                 println!("{}", self.eval_expr(expr)?);
@@ -140,28 +169,33 @@ impl ExecEnv {
             Stmt::BfFDeclaration { iden: _, body: _ } => todo!(),
             Stmt::If { cond, body } => {
                 if self.eval_expr(cond)?.into() {
-                    self.eval_items(body)?;
+                    return self.eval_items_cf(body);
                 }
             }
             Stmt::FunctionCall { iden: _, args: _ } => todo!(),
-            Stmt::Loop { body } => {
-                loop {
-                    // For now, loops run forever until they reach an
-                    // error.
-                    self.eval_items(body)?;
+            Stmt::Loop { body } => loop {
+                let res = self.eval_items_cf(body)?;
+                match res {
+                    ControlFlow::Value(_) => {}
+                    ControlFlow::Break => break,
+                    ControlFlow::Hopback => continue,
                 }
-            }
+            },
             Stmt::VarAssignment { iden, value } => {
                 self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
             }
-            Stmt::Break => todo!(),
-            Stmt::HopBack => todo!(),
+            Stmt::Break => {
+                return Ok(ControlFlow::Break);
+            }
+            Stmt::HopBack => {
+                return Ok(ControlFlow::Hopback);
+            }
             Stmt::Melo(iden) => {
                 self.get_var_mut(&iden.0)?.melo = true;
             }
         }
 
-        Ok(())
+        Ok(ControlFlow::Value(Value::Nul))
     }
 
     /// Get a shared reference to the value of a variable. Throw an
