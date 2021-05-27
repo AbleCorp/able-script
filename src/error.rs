@@ -15,4 +15,5 @@ pub enum ErrorKind {
     MeloVariable(String),
     TypeError(String),
     TopLevelBreak,
+    ArithmeticError,
 }

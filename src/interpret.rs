@@ -269,3 +269,107 @@ impl ExecEnv {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_expression_test() {
+        // Check that 2 + 2 = 4.
+        let mut env = ExecEnv::new();
+        assert_eq!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(2))),
+                right: Box::new(Expr::Literal(Value::Int(2))),
+            })])
+            .unwrap(),
+            Value::Int(4)
+        )
+    }
+
+    #[test]
+    fn type_errors() {
+        // The sum of an integer and a boolean results in a type
+        // error.
+        let mut env = ExecEnv::new();
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
+                right: Box::new(Expr::Literal(Value::Bool(false))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::TypeError(_),
+                position: _,
+            })
+        ));
+    }
+
+    #[test]
+    fn overflow_should_not_panic() {
+        // Integer overflow should throw a recoverable error instead
+        // of panicking.
+        let mut env = ExecEnv::new();
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
+                right: Box::new(Expr::Literal(Value::Int(1))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::ArithmeticError,
+                position: _,
+            })
+        ));
+    }
+
+    // From here on out, I'll use this function to parse and run
+    // expressions, because writing out abstract syntax trees by hand
+    // takes forever and is error-prone.
+    fn eval(env: &mut ExecEnv, src: &str) -> Result<Value, Error> {
+        let mut parser = crate::parser::Parser::new(src);
+
+        // We can assume there won't be any syntax errors in the
+        // interpreter tests.
+        let ast = parser.init().unwrap();
+        env.eval_items(&ast)
+    }
+
+    #[test]
+    fn variable_decl_and_assignment() {
+        // Declaring and reading from a variable.
+        assert_eq!(
+            eval(&mut ExecEnv::new(), "var foo = 32; foo + 1").unwrap(),
+            Value::Int(33)
+        );
+
+        // It should be possible to overwrite variables as well.
+        assert_eq!(
+            eval(&mut ExecEnv::new(), "var bar = 10; bar = 20; bar").unwrap(),
+            Value::Int(20)
+        );
+    }
+
+    #[test]
+    fn variable_persistence() {
+        // Global variables should persist between invocations of
+        // ExecEnv::eval_items().
+        let mut env = ExecEnv::new();
+        eval(&mut env, "var foo = 32;").unwrap();
+        assert_eq!(eval(&mut env, "foo").unwrap(), Value::Int(32));
+    }
+
+    #[test]
+    fn scope_visibility_rules() {
+        // Declaration and assignment of variables declared in an `if`
+        // statement should have no effect on those declared outside
+        // of it.
+        assert_eq!(
+            eval(
+                &mut ExecEnv::new(),
+                "var foo = 1; if (true) { var foo = 2; foo = 3; } foo"
+            )
+            .unwrap(),
+            Value::Int(1)
+        );
+    }
+}
