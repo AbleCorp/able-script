@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::{
+    base_55,
     error::{Error, ErrorKind},
     parser::item::{Expr, Iden, Item, Stmt},
     variables::{Value, Variable},
@@ -140,7 +141,7 @@ impl ExecEnv {
             }
             Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
             Literal(value) => value.clone(),
-            Identifier(Iden(name)) => self.get_var(name)?.value.clone(),
+            Identifier(Iden(name)) => self.get_var(name)?,
         })
     }
 
@@ -204,9 +205,17 @@ impl ExecEnv {
         Ok(HaltStatus::Value(Value::Nul))
     }
 
-    /// Get a shared reference to the value of a variable. Throw an
-    /// error if the variable is inaccessible or banned.
-    fn get_var(&self, name: &str) -> Result<&Variable, Error> {
+    /// Get the value of a variable. Throw an error if the variable is
+    /// inaccessible or banned.
+    fn get_var(&self, name: &str) -> Result<Value, Error> {
+        // One-letter names are reserved as base55 numbers.
+        let mut chars = name.chars();
+        if let (Some(first), None) = (chars.next(), chars.next()) {
+            return Ok(Value::Int(base_55::char2num(first)));
+        }
+
+        // Otherwise, search for the name in the stack from top to
+        // bottom.
         match self
             .stack
             .iter()
@@ -215,7 +224,7 @@ impl ExecEnv {
         {
             Some(var) => {
                 if !var.melo {
-                    Ok(var)
+                    Ok(var.value.clone())
                 } else {
                     Err(Error {
                         kind: ErrorKind::MeloVariable(name.to_owned()),
@@ -235,8 +244,8 @@ impl ExecEnv {
     /// Get a mutable reference to a variable. Throw an error if the
     /// variable is inaccessible or banned.
     fn get_var_mut(&mut self, name: &str) -> Result<&mut Variable, Error> {
-        // This function is almost exactly 22 lines of duplicated code
-        // from get_var, which I feel like is a bad sign...
+        // This function has a lot of duplicated code with `get_var`,
+        // which I feel like is a bad sign...
         match self
             .stack
             .iter_mut()
