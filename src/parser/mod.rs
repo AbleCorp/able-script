@@ -172,7 +172,6 @@ impl<'source> Parser<'source> {
         loop {
             let next = self.lexer.next();
             match next {
-                // TODO(ondra05): Span those
                 Some((Token::RightParenthesis, _)) => break,
                 Some((Token::Identifier(i), span)) => args.push(SpannedIden::new(Iden(i), span)),
                 Some((_, span)) => return Err(Error::unexpected_token(span)),

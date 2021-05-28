@@ -1,5 +1,3 @@
-use logos::Span;
-
 use crate::{error::Error, lexer::SpannedToken, lexer::Token, variables::Abool};
 
 use super::{
