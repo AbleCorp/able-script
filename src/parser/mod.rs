@@ -177,6 +177,19 @@ impl<'source> Parser<'source> {
                 Some((_, span)) => return Err(Error::unexpected_token(span)),
                 None => return Err(Error::end_of_token_stream()),
             }
+
+            match self.lexer.peek() {
+                Some((Token::Comma, _)) => {
+                    self.lexer.next();
+                    continue;
+                }
+                Some((Token::RightParenthesis, _)) => {
+                    self.lexer.next();
+                    break;
+                }
+                Some((_, span)) => return Err(Error::unexpected_token(span.clone())),
+                None => return Err(Error::end_of_token_stream()),
+            }
         }
 
         self.require(Token::LeftBrace)?;
