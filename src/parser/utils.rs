@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
             let token = {
                 match self.lexer.peek().cloned() {
                     Some(t) => t,
-                    None => unimplemented!(),
+                    None => return Err(Error::end_of_token_stream()),
                 }
             };
 
