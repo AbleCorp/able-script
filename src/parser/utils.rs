@@ -3,7 +3,7 @@ use logos::Span;
 use crate::{error::Error, lexer::SpannedToken, lexer::Token, variables::Abool};
 
 use super::{
-    item::{Iden, Item},
+    item::{Iden, Item, SpannedIden},
     Parser,
 };
 
@@ -35,10 +35,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Require an identifier on next and return it
-    pub(super) fn require_iden(&mut self) -> Result<(Iden, Span), Error> {
+    pub(super) fn require_iden(&mut self) -> Result<SpannedIden, Error> {
         let next = self.lexer.next();
         match next {
-            Some((Token::Identifier(i), span)) => Ok((
+            Some((Token::Identifier(i), span)) => Ok(SpannedIden::new(
                 Iden(if self.tdark {
                     i.replace("lang", "script")
                 } else {

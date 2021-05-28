@@ -3,6 +3,7 @@ mod ops;
 mod utils;
 
 use item::Item;
+use item::SpannedIden;
 use logos::Logos;
 
 use crate::{
@@ -105,11 +106,12 @@ impl<'source> Parser<'source> {
             // Melo - ban variable from next usage (runtime error)
             (Token::Melo, span) => {
                 self.lexer.next();
-                let (iden, id_span) = self.require_iden()?;
+                let iden = self.require_iden()?;
+                let iden_end = iden.span.end;
                 self.require(Token::Semicolon)?;
                 Ok(Stmt {
                     kind: StmtKind::Melo(iden),
-                    span: span.start..id_span.end,
+                    span: span.start..iden_end,
                 }
                 .into())
             }
@@ -123,13 +125,13 @@ impl<'source> Parser<'source> {
     /// `var [iden] = [literal];`
     fn variable_declaration(&mut self) -> ParseResult {
         let (_, span) = self.lexer.next().unwrap();
-        let (iden, iden_span) = self.require_iden()?;
+        let iden = self.require_iden()?;
 
         let peek = self.lexer.peek();
         let (init, end_pos) = match peek {
             Some((Token::Semicolon, _)) => {
                 self.lexer.next();
-                (None, iden_span.end)
+                (None, iden.span.end)
             }
             Some((Token::Assignment, _)) => {
                 self.lexer.next();
@@ -140,7 +142,7 @@ impl<'source> Parser<'source> {
                     value = match peek {
                         Some((Token::Semicolon, _)) => break,
                         None => return Err(Error::end_of_token_stream()),
-                        Some(t) => self.parse_operation(Some(t.clone()), value)?,
+                        Some(t) => self.parse_operation(Some(t), value)?,
                     };
                 }
                 self.lexer.next();
@@ -163,7 +165,7 @@ impl<'source> Parser<'source> {
     /// `functio [iden] ([expr], [expr]) { ... }
     fn function_declaration(&mut self) -> ParseResult {
         let (_, span) = self.lexer.next().unwrap();
-        let (iden, _) = self.require_iden()?;
+        let iden = self.require_iden()?;
 
         self.require(Token::LeftParenthesis)?;
         let mut args = vec![];
@@ -195,7 +197,7 @@ impl<'source> Parser<'source> {
     /// `bff [iden] { ... }`
     fn bff_declaration(&mut self) -> ParseResult {
         let (_, span) = self.lexer.next().unwrap();
-        let (iden, _) = self.require_iden()?;
+        let iden = self.require_iden()?;
         self.require(Token::LeftBrace)?;
 
         let mut body = String::new();
@@ -295,7 +297,10 @@ mod tests {
                 body: vec![
                     Item::Stmt(Stmt {
                         kind: VariableDeclaration {
-                            iden: Iden("a".to_owned()),
+                            iden: SpannedIden {
+                                iden: Iden("a".to_owned()),
+                                span: 11..12,
+                            },
                             init: Some(Expr {
                                 kind: Add {
                                     left: Box::new(Expr {
@@ -352,7 +357,10 @@ mod tests {
         let expected = &[
             Item::Stmt(Stmt {
                 kind: VariableDeclaration {
-                    iden: Iden("script".to_owned()),
+                    iden: SpannedIden {
+                        iden: Iden("script".to_owned()),
+                        span: 13..17,
+                    },
                     init: Some(Expr {
                         kind: Literal(Value::Nul),
                         span: 20..23,

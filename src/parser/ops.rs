@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
 
         // Extract identifier
         let iden = match token {
-            (Token::Identifier(i), _span) => Iden(i),
+            (Token::Identifier(i), span) => SpannedIden::new(Iden(i), span),
             (_, span) => return Err(Error::invalid_identifier(span)),
         };
 
@@ -171,7 +171,7 @@ impl<'a> Parser<'a> {
     /// Parse function call
     fn fn_call(&mut self, token: SpannedToken) -> ParseResult {
         let iden = match token {
-            (Token::Identifier(i), _span) => Iden(i),
+            (Token::Identifier(i), span) => SpannedIden::new(Iden(i), span),
             (_, span) => return Err(Error::invalid_identifier(span)),
         };
 

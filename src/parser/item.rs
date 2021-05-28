@@ -6,6 +6,17 @@ use crate::variables::Value;
 pub struct Iden(pub String);
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct SpannedIden {
+    pub iden: Iden,
+    pub span: Span,
+}
+
+impl SpannedIden {
+    pub fn new(iden: Iden, span: Span) -> Self {
+        Self { iden, span }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item {
     Expr(Expr),
     Stmt(Stmt),
@@ -63,6 +74,7 @@ pub enum ExprKind {
     Literal(Value),
     Identifier(Iden),
 }
+
 impl From<Iden> for ExprKind {
     fn from(i: Iden) -> Self {
         Self::Identifier(i)
@@ -72,16 +84,16 @@ impl From<Iden> for ExprKind {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StmtKind {
     VariableDeclaration {
-        iden: Iden,
+        iden: SpannedIden,
         init: Option<Expr>,
     },
     FunctionDeclaration {
-        iden: Iden,
+        iden: SpannedIden,
         args: Vec<Iden>,
         body: Vec<Item>,
     },
     BfFDeclaration {
-        iden: Iden,
+        iden: SpannedIden,
         body: String,
     },
     If {
@@ -89,7 +101,7 @@ pub enum StmtKind {
         body: Vec<Item>,
     },
     FunctionCall {
-        iden: Iden,
+        iden: SpannedIden,
         args: Vec<Expr>,
     },
     Loop {
@@ -97,11 +109,11 @@ pub enum StmtKind {
     },
 
     VarAssignment {
-        iden: Iden,
+        iden: SpannedIden,
         value: Expr,
     },
     Break,
     HopBack,
     Print(Expr),
-    Melo(Iden),
+    Melo(SpannedIden),
 }
