@@ -89,7 +89,7 @@ pub enum StmtKind {
     },
     FunctionDeclaration {
         iden: SpannedIden,
-        args: Vec<Iden>,
+        args: Vec<SpannedIden>,
         body: Vec<Item>,
     },
     BfFDeclaration {

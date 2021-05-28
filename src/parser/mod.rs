@@ -174,7 +174,7 @@ impl<'source> Parser<'source> {
             match next {
                 // TODO(ondra05): Span those
                 Some((Token::RightParenthesis, _)) => break,
-                Some((Token::Identifier(i), _)) => args.push(Iden(i)),
+                Some((Token::Identifier(i), span)) => args.push(SpannedIden::new(Iden(i), span)),
                 Some((_, span)) => return Err(Error::unexpected_token(span)),
                 None => return Err(Error::end_of_token_stream()),
             }
