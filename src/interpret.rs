@@ -320,6 +320,18 @@ mod tests {
                 position: _,
             })
         ));
+
+        // And the same for divide by zero.
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Divide {
+                left: Box::new(Expr::Literal(Value::Int(1))),
+                right: Box::new(Expr::Literal(Value::Int(0))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::ArithmeticError,
+                position: _,
+            })
+        ));
     }
 
     // From here on out, I'll use this function to parse and run
@@ -347,6 +359,10 @@ mod tests {
             eval(&mut ExecEnv::new(), "var bar = 10; bar = 20; bar").unwrap(),
             Value::Int(20)
         );
+
+        // But variable assignment should be illegal when the variable
+        // hasn't been declared in advance.
+        eval(&mut ExecEnv::new(), "baz = 10;").unwrap_err();
     }
 
     #[test]
