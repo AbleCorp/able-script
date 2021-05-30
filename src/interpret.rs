@@ -110,21 +110,42 @@ impl ExecEnv {
         use Expr::*;
         use Value::*;
 
-        // NOTE(Alex): This is quite nasty, and should probably be
-        // re-done using macros or something.
+        // NOTE(Alex): This is really quite horrible. I think the only
+        // real way to clean it up would be to re-engineer the AST's
+        // representation to be more hierarchical: rather than having
+        // e.g. "Expr::Add" and "Expr::Subtract" each with a "left"
+        // and "right" struct member, have something like
+        // "Expr::Binary { oper: BinOp, left: Box<Expr>, right:
+        // Box<Expr> }". That way we could factor out a whole bunch of
+        // common code here.
+        //
+        // That work should probably wait for Ondra's new parser to
+        // come in, however.
         Ok(match expr {
-            Add { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? + i32::try_from(self.eval_expr(right)?)?)
-            }
-            Subtract { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? - i32::try_from(self.eval_expr(right)?)?)
-            }
-            Multiply { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? * i32::try_from(self.eval_expr(right)?)?)
-            }
-            Divide { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? / i32::try_from(self.eval_expr(right)?)?)
-            }
+            Add { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
+                .checked_add(i32::try_from(self.eval_expr(right)?)?)
+                .ok_or(Error {
+                    kind: ErrorKind::ArithmeticError,
+                    position: 0..0,
+                })?),
+            Subtract { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
+                .checked_sub(i32::try_from(self.eval_expr(right)?)?)
+                .ok_or(Error {
+                    kind: ErrorKind::ArithmeticError,
+                    position: 0..0,
+                })?),
+            Multiply { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
+                .checked_mul(i32::try_from(self.eval_expr(right)?)?)
+                .ok_or(Error {
+                    kind: ErrorKind::ArithmeticError,
+                    position: 0..0,
+                })?),
+            Divide { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
+                .checked_div(i32::try_from(self.eval_expr(right)?)?)
+                .ok_or(Error {
+                    kind: ErrorKind::ArithmeticError,
+                    position: 0..0,
+                })?),
             Lt { left, right } => {
                 Bool(i32::try_from(self.eval_expr(left)?)? < i32::try_from(self.eval_expr(right)?)?)
             }
