@@ -14,7 +14,7 @@ macro_rules! gen_infix {
             let next = self.lexer.next();
             let right = self.parse_expr(next)?;
             let end_pos = right.span.end;
-            Ok(Expr::new(ExprKind::$type { left: Box::new(left), right: Box::new(right) }, span.start..end_pos))
+            Ok(Expr::new(ExprKind::Binary { left: Box::new(left), right: Box::new(right), kind: BinOpKind::$type }, span.start..end_pos))
         })*
     };
 }
@@ -101,13 +101,13 @@ impl<'a> Parser<'a> {
     // Generate infix
     gen_infix! {
         addition => Add;
-        subtract => Subtract;
-        multiply => Multiply;
-        divide => Divide;
+        subtract => Sub;
+        multiply => Mul;
+        divide => Div;
         cmplt => Lt;
         cmpgt => Gt;
         cmpeq => Eq;
-        cmpneq => Neq;
+        cmpneq => Ne;
         logand => And;
         logor => Or;
     }

@@ -60,21 +60,29 @@ impl From<Stmt> for Item {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprKind {
-    Add { left: Box<Expr>, right: Box<Expr> },
-    Subtract { left: Box<Expr>, right: Box<Expr> },
-    Multiply { left: Box<Expr>, right: Box<Expr> },
-    Divide { left: Box<Expr>, right: Box<Expr> },
-    Lt { left: Box<Expr>, right: Box<Expr> },
-    Gt { left: Box<Expr>, right: Box<Expr> },
-    Eq { left: Box<Expr>, right: Box<Expr> },
-    Neq { left: Box<Expr>, right: Box<Expr> },
-    And { left: Box<Expr>, right: Box<Expr> },
-    Or { left: Box<Expr>, right: Box<Expr> },
+    Binary {
+        left: Box<Expr>,
+        right: Box<Expr>,
+        kind: BinOpKind,
+    },
     Not(Box<Expr>),
     Literal(Value),
     Identifier(Iden),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum BinOpKind {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Lt,
+    Gt,
+    Ne,
+    Eq,
+    And,
+    Or,
+}
 impl From<Iden> for ExprKind {
     fn from(i: Iden) -> Self {
         Self::Identifier(i)

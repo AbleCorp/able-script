@@ -9,7 +9,7 @@ use logos::Logos;
 use crate::{
     error::Error,
     lexer::SpannedToken,
-    parser::item::{Expr, ExprKind, Stmt, StmtKind},
+    parser::item::{BinOpKind, Expr, ExprKind, Stmt, StmtKind},
     variables::Value,
 };
 use crate::{lexer::Token, parser::item::Iden};
@@ -300,7 +300,6 @@ mod tests {
     use super::*;
     use ExprKind::*;
     use StmtKind::*;
-
     #[test]
     fn control_flow() {
         let code = r#"loop { var a = 3 + 2; if (a == 5) { break; } }"#;
@@ -314,7 +313,7 @@ mod tests {
                                 span: 11..12,
                             },
                             init: Some(Expr {
-                                kind: Add {
+                                kind: Binary {
                                     left: Box::new(Expr {
                                         kind: Literal(Value::Int(3)),
                                         span: 15..16,
@@ -323,6 +322,7 @@ mod tests {
                                         kind: Literal(Value::Int(2)),
                                         span: 19..20,
                                     }),
+                                    kind: BinOpKind::Add,
                                 },
                                 span: 15..20,
                             }),
@@ -332,7 +332,7 @@ mod tests {
                     Item::Stmt(Stmt {
                         kind: If {
                             cond: Expr {
-                                kind: Eq {
+                                kind: Binary {
                                     left: Box::new(Expr {
                                         kind: Identifier(Iden("a".to_owned())),
                                         span: 26..27,
@@ -341,6 +341,7 @@ mod tests {
                                         kind: Literal(Value::Int(5)),
                                         span: 31..32,
                                     }),
+                                    kind: BinOpKind::Eq,
                                 },
                                 span: 25..33,
                             },
