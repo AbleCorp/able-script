@@ -113,55 +113,86 @@ impl ExecEnv {
         use Expr::*;
         use Value::*;
 
-        // NOTE(Alex): This is really quite horrible. I think the only
-        // real way to clean it up would be to re-engineer the AST's
-        // representation to be more hierarchical: rather than having
-        // e.g. "Expr::Add" and "Expr::Subtract" each with a "left"
-        // and "right" struct member, have something like
-        // "Expr::Binary { oper: BinOp, left: Box<Expr>, right:
-        // Box<Expr> }". That way we could factor out a whole bunch of
-        // common code here.
-        //
-        // That work should probably wait for Ondra's new parser to
-        // come in, however.
+        // NOTE(Alex): This block will get a whole lot cleaner once
+        // Ondra's parser stuff gets merged (specifically 97fb19e).
+        // For now, though, we've got a bunch of manually-checked
+        // unreachable!()s in here which makes me sad...
         Ok(match expr {
-            Add { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
-                .checked_add(i32::try_from(self.eval_expr(right)?)?)
-                .ok_or(Error {
-                    kind: ErrorKind::ArithmeticError,
-                    position: 0..0,
-                })?),
-            Subtract { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
-                .checked_sub(i32::try_from(self.eval_expr(right)?)?)
-                .ok_or(Error {
-                    kind: ErrorKind::ArithmeticError,
-                    position: 0..0,
-                })?),
-            Multiply { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
-                .checked_mul(i32::try_from(self.eval_expr(right)?)?)
-                .ok_or(Error {
-                    kind: ErrorKind::ArithmeticError,
-                    position: 0..0,
-                })?),
-            Divide { left, right } => Int(i32::try_from(self.eval_expr(left)?)?
-                .checked_div(i32::try_from(self.eval_expr(right)?)?)
-                .ok_or(Error {
-                    kind: ErrorKind::ArithmeticError,
-                    position: 0..0,
-                })?),
-            Lt { left, right } => {
-                Bool(i32::try_from(self.eval_expr(left)?)? < i32::try_from(self.eval_expr(right)?)?)
-            }
-            Gt { left, right } => {
-                Bool(i32::try_from(self.eval_expr(left)?)? > i32::try_from(self.eval_expr(right)?)?)
-            }
-            Eq { left, right } => Bool(self.eval_expr(left)? == self.eval_expr(right)?),
-            Neq { left, right } => Bool(self.eval_expr(left)? != self.eval_expr(right)?),
-            And { left, right } => {
-                Bool(bool::from(self.eval_expr(left)?) && bool::from(self.eval_expr(right)?))
-            }
-            Or { left, right } => {
-                Bool(bool::from(self.eval_expr(left)?) || bool::from(self.eval_expr(right)?))
+            // Binary expressions.
+            Add { left, right }
+            | Subtract { left, right }
+            | Multiply { left, right }
+            | Divide { left, right }
+            | Lt { left, right }
+            | Gt { left, right }
+            | Eq { left, right }
+            | Neq { left, right }
+            | And { left, right }
+            | Or { left, right } => {
+                let left = self.eval_expr(left)?;
+                let right = self.eval_expr(right)?;
+
+                match expr {
+                    // Arithmetic operators.
+                    Add { .. }
+                    | Subtract { .. }
+                    | Multiply { .. }
+                    | Divide { .. } => {
+                        let left = i32::try_from(left)?;
+                        let right = i32::try_from(right)?;
+
+                        let res = match expr {
+                            Add { .. } => left.checked_add(right),
+                            Subtract { .. } => left.checked_sub(right),
+                            Multiply { .. } => left.checked_mul(right),
+                            Divide { .. } => left.checked_div(right),
+                            _ => unreachable!(),
+                        }
+                        .ok_or(Error {
+                            kind: ErrorKind::ArithmeticError,
+                            position: 0..0,
+                        })?;
+                        Int(res)
+                    }
+
+                    // Numeric comparisons.
+                    Lt { .. } | Gt { .. } => {
+                        let left = i32::try_from(left)?;
+                        let right = i32::try_from(right)?;
+
+                        let res = match expr {
+                            Lt { .. } => left < right,
+                            Gt { .. } => left > right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // General comparisons.
+                    Eq { .. } | Neq { .. } => {
+                        let res = match expr {
+                            Eq { .. } => left == right,
+                            Neq { .. } => left != right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // Logical connectives.
+                    And { .. } | Or { .. } => {
+                        let left = bool::from(left);
+                        let right = bool::from(right);
+                        let res = match expr {
+                            And { .. } => left && right,
+                            Or { .. } => left || right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // That's all the binary operations.
+                    _ => unreachable!(),
+                }
             }
             Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
             Literal(value) => value.clone(),
