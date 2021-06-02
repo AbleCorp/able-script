@@ -205,10 +205,9 @@ impl ExecEnv {
                     Value::Functio(func) => {
                         match func {
                             Functio::BfFunctio(body) => {
-                                use crate::variables::BfWriter;
                                 let mut input: Vec<u8> = vec![];
                                 for arg in args {
-                                    input.write_value(&self.eval_expr(arg)?);
+                                    self.eval_expr(arg)?.bf_write(&mut input);
                                 }
                                 println!("input = {:?}", input);
                                 let mut output = vec![];
