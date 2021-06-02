@@ -8,13 +8,16 @@
 
 #[deny(missing_docs)]
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::{
+    convert::TryFrom,
+    io::{stdout, Write},
+};
 
 use crate::{
     base_55,
     error::{Error, ErrorKind},
     parser::item::{Expr, Iden, Item, Stmt},
-    variables::{Value, Variable},
+    variables::{Functio, Value, Variable},
 };
 
 /// An environment for executing AbleScript code.
@@ -178,29 +181,64 @@ impl ExecEnv {
                     None => Value::Nul,
                 };
 
-                // There's always at least one stack frame on the
-                // stack if we're evaluating something, so we can
-                // `unwrap` here.
-                self.stack.iter_mut().last().unwrap().variables.insert(
-                    iden.0.clone(),
-                    Variable {
-                        melo: false,
-                        value: init,
-                    },
-                );
+                self.decl_var(&iden.0, init);
             }
             Stmt::FunctionDeclaration {
                 iden: _,
                 args: _,
                 body: _,
             } => todo!(),
-            Stmt::BfFDeclaration { iden: _, body: _ } => todo!(),
+            Stmt::BfFDeclaration { iden, body } => {
+                self.decl_var(
+                    &iden.0,
+                    Value::Functio(Functio::BfFunctio(body.as_bytes().into())),
+                );
+            }
             Stmt::If { cond, body } => {
                 if self.eval_expr(cond)?.into() {
                     return self.eval_items_hs(body);
                 }
             }
-            Stmt::FunctionCall { iden: _, args: _ } => todo!(),
+            Stmt::FunctionCall { iden, args } => {
+                let func = self.get_var(&iden.0)?;
+                match func {
+                    Value::Functio(func) => {
+                        match func {
+                            Functio::BfFunctio(body) => {
+                                use crate::variables::BfWriter;
+                                let mut input: Vec<u8> = vec![];
+                                for arg in args {
+                                    input.write_value(&self.eval_expr(arg)?);
+                                }
+                                println!("input = {:?}", input);
+                                let mut output = vec![];
+
+                                crate::brian::interpret_with_io(&body, &input as &[_], &mut output)
+                                    .map_err(|e| Error {
+                                        kind: ErrorKind::BfInterpretError(e),
+                                        position: 0..0,
+                                    })?;
+
+                                // I guess Brainfuck functions write
+                                // output to stdout? It's not quite
+                                // clear to me what else to do. ~~Alex
+                                stdout()
+                                    .write_all(&output)
+                                    .expect("Failed to write to stdout");
+                            }
+                            Functio::AbleFunctio(_) => {
+                                todo!()
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::TypeError(iden.0.to_owned()),
+                            position: 0..0,
+                        })
+                    }
+                }
+            }
             Stmt::Loop { body } => loop {
                 let res = self.eval_items_hs(body)?;
                 match res {
@@ -288,6 +326,16 @@ impl ExecEnv {
                 position: 0..0,
             }),
         }
+    }
+
+    /// Declares a new variable, with the given initial value.
+    fn decl_var(&mut self, name: &str, value: Value) {
+        self.stack
+            .iter_mut()
+            .last()
+            .expect("Declaring variable on empty stack")
+            .variables
+            .insert(name.to_owned(), Variable { melo: false, value });
     }
 }
 

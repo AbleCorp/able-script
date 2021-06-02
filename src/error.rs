@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use crate::brian::InterpretError;
+
 #[derive(Debug, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
@@ -16,4 +18,5 @@ pub enum ErrorKind {
     TypeError(String),
     TopLevelBreak,
     ArithmeticError,
+    BfInterpretError(InterpretError),
 }
