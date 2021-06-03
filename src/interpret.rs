@@ -8,13 +8,16 @@
 
 #[deny(missing_docs)]
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::{
+    convert::TryFrom,
+    io::{stdout, Write},
+};
 
 use crate::{
     base_55,
     error::{Error, ErrorKind},
     parser::item::{Expr, Iden, Item, Stmt},
-    variables::{Value, Variable},
+    variables::{Functio, Value, Variable},
 };
 
 /// An environment for executing AbleScript code.
@@ -110,34 +113,86 @@ impl ExecEnv {
         use Expr::*;
         use Value::*;
 
-        // NOTE(Alex): This is quite nasty, and should probably be
-        // re-done using macros or something.
+        // NOTE(Alex): This block will get a whole lot cleaner once
+        // Ondra's parser stuff gets merged (specifically 97fb19e).
+        // For now, though, we've got a bunch of manually-checked
+        // unreachable!()s in here which makes me sad...
         Ok(match expr {
-            Add { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? + i32::try_from(self.eval_expr(right)?)?)
-            }
-            Subtract { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? - i32::try_from(self.eval_expr(right)?)?)
-            }
-            Multiply { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? * i32::try_from(self.eval_expr(right)?)?)
-            }
-            Divide { left, right } => {
-                Int(i32::try_from(self.eval_expr(left)?)? / i32::try_from(self.eval_expr(right)?)?)
-            }
-            Lt { left, right } => {
-                Bool(i32::try_from(self.eval_expr(left)?)? < i32::try_from(self.eval_expr(right)?)?)
-            }
-            Gt { left, right } => {
-                Bool(i32::try_from(self.eval_expr(left)?)? > i32::try_from(self.eval_expr(right)?)?)
-            }
-            Eq { left, right } => Bool(self.eval_expr(left)? == self.eval_expr(right)?),
-            Neq { left, right } => Bool(self.eval_expr(left)? != self.eval_expr(right)?),
-            And { left, right } => {
-                Bool(bool::from(self.eval_expr(left)?) && bool::from(self.eval_expr(right)?))
-            }
-            Or { left, right } => {
-                Bool(bool::from(self.eval_expr(left)?) || bool::from(self.eval_expr(right)?))
+            // Binary expressions.
+            Add { left, right }
+            | Subtract { left, right }
+            | Multiply { left, right }
+            | Divide { left, right }
+            | Lt { left, right }
+            | Gt { left, right }
+            | Eq { left, right }
+            | Neq { left, right }
+            | And { left, right }
+            | Or { left, right } => {
+                let left = self.eval_expr(left)?;
+                let right = self.eval_expr(right)?;
+
+                match expr {
+                    // Arithmetic operators.
+                    Add { .. }
+                    | Subtract { .. }
+                    | Multiply { .. }
+                    | Divide { .. } => {
+                        let left = i32::try_from(left)?;
+                        let right = i32::try_from(right)?;
+
+                        let res = match expr {
+                            Add { .. } => left.checked_add(right),
+                            Subtract { .. } => left.checked_sub(right),
+                            Multiply { .. } => left.checked_mul(right),
+                            Divide { .. } => left.checked_div(right),
+                            _ => unreachable!(),
+                        }
+                        .ok_or(Error {
+                            kind: ErrorKind::ArithmeticError,
+                            position: 0..0,
+                        })?;
+                        Int(res)
+                    }
+
+                    // Numeric comparisons.
+                    Lt { .. } | Gt { .. } => {
+                        let left = i32::try_from(left)?;
+                        let right = i32::try_from(right)?;
+
+                        let res = match expr {
+                            Lt { .. } => left < right,
+                            Gt { .. } => left > right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // General comparisons.
+                    Eq { .. } | Neq { .. } => {
+                        let res = match expr {
+                            Eq { .. } => left == right,
+                            Neq { .. } => left != right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // Logical connectives.
+                    And { .. } | Or { .. } => {
+                        let left = bool::from(left);
+                        let right = bool::from(right);
+                        let res = match expr {
+                            And { .. } => left && right,
+                            Or { .. } => left || right,
+                            _ => unreachable!(),
+                        };
+                        Bool(res)
+                    }
+
+                    // That's all the binary operations.
+                    _ => unreachable!(),
+                }
             }
             Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
             Literal(value) => value.clone(),
@@ -157,29 +212,63 @@ impl ExecEnv {
                     None => Value::Nul,
                 };
 
-                // There's always at least one stack frame on the
-                // stack if we're evaluating something, so we can
-                // `unwrap` here.
-                self.stack.iter_mut().last().unwrap().variables.insert(
-                    iden.0.clone(),
-                    Variable {
-                        melo: false,
-                        value: init,
-                    },
-                );
+                self.decl_var(&iden.0, init);
             }
             Stmt::FunctionDeclaration {
                 iden: _,
                 args: _,
                 body: _,
             } => todo!(),
-            Stmt::BfFDeclaration { iden: _, body: _ } => todo!(),
+            Stmt::BfFDeclaration { iden, body } => {
+                self.decl_var(
+                    &iden.0,
+                    Value::Functio(Functio::BfFunctio(body.as_bytes().into())),
+                );
+            }
             Stmt::If { cond, body } => {
                 if self.eval_expr(cond)?.into() {
                     return self.eval_items_hs(body);
                 }
             }
-            Stmt::FunctionCall { iden: _, args: _ } => todo!(),
+            Stmt::FunctionCall { iden, args } => {
+                let func = self.get_var(&iden.0)?;
+                match func {
+                    Value::Functio(func) => {
+                        match func {
+                            Functio::BfFunctio(body) => {
+                                let mut input: Vec<u8> = vec![];
+                                for arg in args {
+                                    self.eval_expr(arg)?.bf_write(&mut input);
+                                }
+                                println!("input = {:?}", input);
+                                let mut output = vec![];
+
+                                crate::brian::interpret_with_io(&body, &input as &[_], &mut output)
+                                    .map_err(|e| Error {
+                                        kind: ErrorKind::BfInterpretError(e),
+                                        position: 0..0,
+                                    })?;
+
+                                // I guess Brainfuck functions write
+                                // output to stdout? It's not quite
+                                // clear to me what else to do. ~~Alex
+                                stdout()
+                                    .write_all(&output)
+                                    .expect("Failed to write to stdout");
+                            }
+                            Functio::AbleFunctio(_) => {
+                                todo!()
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::TypeError(iden.0.to_owned()),
+                            position: 0..0,
+                        })
+                    }
+                }
+            }
             Stmt::Loop { body } => loop {
                 let res = self.eval_items_hs(body)?;
                 match res {
@@ -267,5 +356,135 @@ impl ExecEnv {
                 position: 0..0,
             }),
         }
+    }
+
+    /// Declares a new variable, with the given initial value.
+    fn decl_var(&mut self, name: &str, value: Value) {
+        self.stack
+            .iter_mut()
+            .last()
+            .expect("Declaring variable on empty stack")
+            .variables
+            .insert(name.to_owned(), Variable { melo: false, value });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_expression_test() {
+        // Check that 2 + 2 = 4.
+        let mut env = ExecEnv::new();
+        assert_eq!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(2))),
+                right: Box::new(Expr::Literal(Value::Int(2))),
+            })])
+            .unwrap(),
+            Value::Int(4)
+        )
+    }
+
+    #[test]
+    fn type_errors() {
+        // The sum of an integer and a boolean results in a type
+        // error.
+        let mut env = ExecEnv::new();
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
+                right: Box::new(Expr::Literal(Value::Bool(false))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::TypeError(_),
+                position: _,
+            })
+        ));
+    }
+
+    #[test]
+    fn overflow_should_not_panic() {
+        // Integer overflow should throw a recoverable error instead
+        // of panicking.
+        let mut env = ExecEnv::new();
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Add {
+                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
+                right: Box::new(Expr::Literal(Value::Int(1))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::ArithmeticError,
+                position: _,
+            })
+        ));
+
+        // And the same for divide by zero.
+        assert!(matches!(
+            env.eval_items(&[Item::Expr(Expr::Divide {
+                left: Box::new(Expr::Literal(Value::Int(1))),
+                right: Box::new(Expr::Literal(Value::Int(0))),
+            })]),
+            Err(Error {
+                kind: ErrorKind::ArithmeticError,
+                position: _,
+            })
+        ));
+    }
+
+    // From here on out, I'll use this function to parse and run
+    // expressions, because writing out abstract syntax trees by hand
+    // takes forever and is error-prone.
+    fn eval(env: &mut ExecEnv, src: &str) -> Result<Value, Error> {
+        let mut parser = crate::parser::Parser::new(src);
+
+        // We can assume there won't be any syntax errors in the
+        // interpreter tests.
+        let ast = parser.init().unwrap();
+        env.eval_items(&ast)
+    }
+
+    #[test]
+    fn variable_decl_and_assignment() {
+        // Declaring and reading from a variable.
+        assert_eq!(
+            eval(&mut ExecEnv::new(), "var foo = 32; foo + 1").unwrap(),
+            Value::Int(33)
+        );
+
+        // It should be possible to overwrite variables as well.
+        assert_eq!(
+            eval(&mut ExecEnv::new(), "var bar = 10; bar = 20; bar").unwrap(),
+            Value::Int(20)
+        );
+
+        // But variable assignment should be illegal when the variable
+        // hasn't been declared in advance.
+        eval(&mut ExecEnv::new(), "baz = 10;").unwrap_err();
+    }
+
+    #[test]
+    fn variable_persistence() {
+        // Global variables should persist between invocations of
+        // ExecEnv::eval_items().
+        let mut env = ExecEnv::new();
+        eval(&mut env, "var foo = 32;").unwrap();
+        assert_eq!(eval(&mut env, "foo").unwrap(), Value::Int(32));
+    }
+
+    #[test]
+    fn scope_visibility_rules() {
+        // Declaration and assignment of variables declared in an `if`
+        // statement should have no effect on those declared outside
+        // of it.
+        assert_eq!(
+            eval(
+                &mut ExecEnv::new(),
+                "var foo = 1; if (true) { var foo = 2; foo = 3; } foo"
+            )
+            .unwrap(),
+            Value::Int(1)
+        );
     }
 }

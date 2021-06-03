@@ -1,8 +1,11 @@
-use std::{convert::TryFrom, fmt::Display};
+use std::{convert::TryFrom, fmt::Display, io::Write};
 
 use rand::Rng;
 
-use crate::error::{Error, ErrorKind};
+use crate::{
+    error::{Error, ErrorKind},
+    parser::item::Item,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Abool {
@@ -32,22 +35,101 @@ impl From<Abool> for bool {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Functio {
+    BfFunctio(Vec<u8>),
+    AbleFunctio(Vec<Item>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    Nul,
     Str(String),
     Int(i32),
     Bool(bool),
     Abool(Abool),
-    Nul,
+    Functio(Functio),
+}
+
+impl Value {
+    /// Writes an AbleScript value to a Brainfuck input stream. This
+    /// should generally only be called on `Write`rs that cannot fail,
+    /// e.g., `Vec<u8>`, because any IO errors will cause a panic.
+    ///
+    /// The mapping from values to encodings is as follows, where all
+    /// multi-byte integers are little-endian:
+    ///
+    /// | AbleScript representation | Brainfuck representation                                    |
+    /// |---------------------------|-------------------------------------------------------------|
+    /// | Nul                       | `00`                                                        |
+    /// | Str                       | `01` [length, 4 bytes] [string, \[LENGTH\] bytes, as UTF-8] |
+    /// | Int                       | `02` [value, 4 bytes]                                       |
+    /// | Bool                      | `03` `00` false, `03` `01` true.                            |
+    /// | Abool                     | `04` `00` never, `04` `01` always, `04` `02` sometimes.     |
+    /// | Brainfuck Functio         | `05` `00` [length, 4 bytes] [source code, \[LENGTH\] bytes] |
+    /// | AbleScript Functio        | `05` `01` (todo, not yet finalized or implemented)          |
+    ///
+    /// The existing mappings should never change, as they are
+    /// directly visible from Brainfuck code and modifying them would
+    /// break a significant amount of AbleScript code. If more types
+    /// are added in the future, they should be assigned the remaining
+    /// discriminant bytes from 06..FF.
+    pub fn bf_write(&mut self, stream: &mut impl Write) {
+        match self {
+            Value::Nul => stream.write_all(&[0]),
+            Value::Str(s) => stream
+                .write_all(&[1])
+                .and_then(|_| stream.write_all(&(s.len() as u32).to_le_bytes()))
+                .and_then(|_| stream.write_all(&s.as_bytes())),
+            Value::Int(v) => stream
+                .write_all(&[2])
+                .and_then(|_| stream.write_all(&v.to_le_bytes())),
+            Value::Bool(b) => stream
+                .write_all(&[3])
+                .and_then(|_| stream.write_all(&[*b as _])),
+            Value::Abool(a) => stream.write_all(&[4]).and_then(|_| {
+                stream.write_all(&[match *a {
+                    Abool::Never => 0,
+                    Abool::Sometimes => 2,
+                    Abool::Always => 1,
+                }])
+            }),
+            Value::Functio(f) => stream.write_all(&[5]).and_then(|_| match f {
+                Functio::BfFunctio(f) => stream
+                    .write_all(&[0])
+                    .and_then(|_| stream.write_all(&(f.len() as u32).to_le_bytes()))
+                    .and_then(|_| stream.write_all(&f)),
+                Functio::AbleFunctio(_) => {
+                    todo!()
+                }
+            }),
+        }
+        .expect("Failed to write to Brainfuck input");
+    }
 }
 
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Value::Nul => write!(f, "nul"),
             Value::Str(v) => write!(f, "{}", v),
             Value::Int(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
             Value::Abool(v) => write!(f, "{}", v),
-            Value::Nul => write!(f, "nul"),
+            Value::Functio(v) => match v {
+                Functio::BfFunctio(source) => {
+                    write!(
+                        f,
+                        "{}",
+                        String::from_utf8(source.to_owned())
+                            .expect("Brainfuck functio source should be UTF-8")
+                    )
+                }
+                Functio::AbleFunctio(source) => {
+                    // TODO: what's the proper way to display an
+                    // AbleScript functio?
+                    write!(f, "{:?}", source)
+                }
+            },
         }
     }
 }
@@ -84,6 +166,8 @@ impl From<Value> for bool {
             Value::Str(s) => s.len() != 0,
             // 0 is falsey, nonzero is truthy.
             Value::Int(x) => x != 0,
+            // Functios are always truthy.
+            Value::Functio(_) => true,
             // And nul is truthy as a symbol of the fact that the
             // deep, fundamental truth of this world is nothing but
             // the eternal void.

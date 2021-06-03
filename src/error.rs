@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use crate::brian::InterpretError;
+
 #[derive(Debug, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
@@ -15,4 +17,6 @@ pub enum ErrorKind {
     MeloVariable(String),
     TypeError(String),
     TopLevelBreak,
+    ArithmeticError,
+    BfInterpretError(InterpretError),
 }
