@@ -20,13 +20,20 @@ pub fn repl() {
                     Ok(ast) => {
                         println!("{:?}", ast);
                         println!("{:?}", env.eval_items(&ast));
-                    },
+                    }
                     Err(e) => {
                         println!(
                             "Error `{:?}` occured at span: {:?} = `{:?}`",
                             e.kind,
                             e.position.clone(),
-                            line.slice(e.position)
+                            line.slice(e.position.clone())
+                        );
+
+                        println!(" | {}", line);
+                        println!(
+                            "   {}{}-- Here",
+                            " ".repeat(e.position.start),
+                            "^".repeat((e.position.end - e.position.start).max(1))
                         );
                     }
                 }
