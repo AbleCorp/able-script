@@ -23,7 +23,7 @@ pub fn repl() {
                     }
                     Err(e) => {
                         println!(
-                            "Error `{:?}` occured at span: {:?} = `{:?}`",
+                            "Error `{:?}` occurred at span: {:?} = `{:?}`",
                             e.kind,
                             e.position.clone(),
                             line.slice(e.position.clone())
