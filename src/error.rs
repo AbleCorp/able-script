@@ -5,7 +5,7 @@ use crate::brian::InterpretError;
 #[derive(Debug, Clone)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub position: Range<usize>,
+    pub span: Range<usize>,
 }
 
 #[derive(Debug, Clone)]

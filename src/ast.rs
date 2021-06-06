@@ -1,9 +1,22 @@
+//! AbleScript's Abstract Syntax tree
+//!
+//! Statements are the type which is AST made of, as they
+//! express an effect.
+//!
+//! Expressions are just operations and they cannot be
+//! used as statements. Functions in AbleScript are in fact
+//! just plain subroutines and they do not return any value, 
+//! so their calls are statements.
+
 use crate::variables::Value;
 
 type Span = std::ops::Range<usize>;
 
 #[derive(Debug)]
-pub struct Iden(String);
+pub struct Iden {
+    pub iden: String,
+    pub span: Span,
+}
 
 #[derive(Debug)]
 pub struct Block {
@@ -64,13 +77,14 @@ pub struct Expr {
 
 #[derive(Debug)]
 pub enum ExprKind {
-    Binary {
+    BinOp {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
         kind: BinOpKind,
     },
     Not(Box<Expr>),
     Literal(Value),
+    Variable(String),
 }
 
 impl Expr {
