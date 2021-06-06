@@ -107,6 +107,10 @@ pub enum Token {
     #[token("hopback")]
     HopBack,
 
+    /// Crash with random error (see discussion #17)
+    #[token("rlyeh")]
+    Rlyeh,
+
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
