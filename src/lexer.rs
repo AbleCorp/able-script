@@ -1,69 +1,78 @@
-use logos::{Lexer, Logos, Span};
+use logos::{Lexer, Logos};
 
 use crate::variables::Abool;
 
-pub struct PeekableLexer<'source> {
-    lexer: Lexer<'source, Token>,
-    peeked: Option<Option<Token>>,
-}
-
-impl<'source> PeekableLexer<'source> {
-    pub fn lexer(source: &'source str) -> Self {
-        Self {
-            lexer: Token::lexer(source),
-            peeked: None,
-        }
-    }
-
-    /// Returns a reference to the next() value without advancing the iterator.
-    #[inline]
-    pub fn peek(&mut self) -> &Option<Token> {
-        if self.peeked.is_none() {
-            self.peeked = Some(self.lexer.next());
-        }
-        self.peeked.as_ref().unwrap()
-    }
-
-    /// Get the range for the current token in `Source`.
-    #[inline]
-    pub fn span(&self) -> Span {
-        self.lexer.span()
-    }
-
-    /// Get a string slice of the current token.
-    #[inline]
-    pub fn slice(&self) -> &'source str {
-        self.lexer.slice()
-    }
-
-    /// Get a slice of remaining source, starting at the end of current token.
-    #[inline]
-    pub fn remainder(&self) -> &'source str {
-        self.lexer.remainder()
-    }
-}
-
-impl<'source> Iterator for PeekableLexer<'source> {
-    type Item = Token;
-
-    /// Advances the iterator and returns the next value.
-    ///
-    /// Returns [`None`] when iteration is finished.
-    /// Individual iterator implementations may choose to resume iteration, and so calling `next()`
-    /// again may or may not eventually start returning [`Some(Item)`] again at some point.
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.peeked.take() {
-            Some(v) => v,
-            None => self.lexer.next(),
-        }
-    }
-}
-
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
+    // Symbols
+    #[token("(")]
+    LeftParenthesis,
+
+    #[token(")")]
+    RightParenthesis,
+
+    #[token("[")]
+    LeftBracket,
+
+    #[token("]")]
+    RightBracket,
+
+    #[token("{")]
+    LeftCurly,
+
+    #[token("}")]
+    RightCurly,
+
+    #[token(";")]
+    Semicolon,
+
+    #[token(".")]
+    Dot,
+
+    #[token(",")]
+    Comma,
+
+    // Operators
+    #[token("+")]
+    Plus,
+
+    #[token("-")]
+    Minus,
+
+    #[token("*")]
+    Star,
+
+    #[token("/")]
+    FwdSlash,
+
+    #[token("=")]
+    Equal,
+
+    // Logical operators
+    #[token("<")]
+    LessThan,
+
+    #[token(">")]
+    GreaterThan,
+
+    #[token("==")]
+    EqualEqual,
+
+    #[token("!=")]
+    NotEqual,
+
+    #[token("&")]
+    And,
+
+    #[token("|")]
+    Or,
+
+    #[token("!|aint")] // also add aint as a not keyword
+    Not,
+
+    // Keywords
     #[token("functio")]
-    Function,
+    Functio,
 
     /// Brain fuck FFI
     #[token("bff")]
@@ -84,7 +93,7 @@ pub enum Token {
     #[token("T-Dark")]
     TDark,
 
-    // Expressions
+    // Control flow keywords
     #[token("if")]
     If,
 
@@ -94,17 +103,22 @@ pub enum Token {
     #[token("break")]
     Break,
 
+    /// HopBack hops on the back of loop - like `continue`
     #[token("hopback")]
     HopBack,
 
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
-    Boolean(bool),
+    Bool(bool),
 
     /// Always, Sometimes, Never
     #[regex("always|sometimes|never", get_abool)]
-    Aboolean(Abool),
+    Abool(Abool),
+
+    /// Base52 based character ('a')
+    #[token("'.*'")]
+    Char,
 
     /// String
     #[regex("\"(\\.|[^\"])*\"", get_string)]
@@ -118,80 +132,11 @@ pub enum Token {
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
     Identifier(String),
 
-    #[regex("nul")]
-    Nul,
-
-    #[token("(")]
-    LeftParenthesis,
-
-    #[token(")")]
-    RightParenthesis,
-
-    #[token("[")]
-    LeftBracket,
-
-    #[token("]")]
-    RightBracket,
-
-    #[token("{")]
-    LeftBrace,
-
-    #[token("}")]
-    RightBrace,
-
-    #[token(";")]
-    Semicolon,
-
-    #[token(".")]
-    FullStop,
-
-    #[token(",")]
-    Comma,
-
     #[regex(r"owo.*")]
     Comment,
 
-    // Operators
-    #[token("-")]
-    Subtract,
-
-    #[token("+")]
-    Addition,
-
-    #[token("*")]
-    Multiply,
-
-    #[token("/")]
-    Divide,
-
-    #[token("=")]
-    Assignment,
-
-    // Logical operators
-    #[token("<")]
-    OpLt,
-
-    #[token(">")]
-    OpGt,
-
-    #[token("==")]
-    OpEq,
-
-    #[token("!=")]
-    OpNeq,
-
-    #[token("&")]
-    LogAnd,
-
-    #[token("|")]
-    LogOr,
-
-    #[token("!|aint")] // also add aint as a not keyword
-    LogNot,
-
-    /// Base52 based character ('a')
-    #[token("'.*'")]
-    Char,
+    #[regex("nul")]
+    Nul,
 
     #[regex(r"[ \t\n\f]+", logos::skip)]
     #[error]
@@ -233,25 +178,25 @@ mod tests {
     fn simple_fn() {
         let code = "functio test() { var a = 3; if a == 3 { a print } }";
         let expected = &[
-            Function,
+            Functio,
             Identifier("test".to_owned()),
             LeftParenthesis,
             RightParenthesis,
-            LeftBrace,
+            LeftCurly,
             Variable,
             Identifier("a".to_owned()),
-            Assignment,
+            Equal,
             Integer(3),
             Semicolon,
             If,
             Identifier("a".to_owned()),
-            OpEq,
+            EqualEqual,
             Integer(3),
-            LeftBrace,
+            LeftCurly,
             Identifier("a".to_owned()),
             Print,
-            RightBrace,
-            RightBrace,
+            RightCurly,
+            RightCurly,
         ];
         let lexer = Token::lexer(code);
         let result: Vec<Token> = lexer.collect();
