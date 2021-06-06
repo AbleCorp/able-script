@@ -6,10 +6,10 @@ use crate::variables::Abool;
 pub enum Token {
     // Symbols
     #[token("(")]
-    LeftParenthesis,
+    LeftParen,
 
     #[token(")")]
-    RightParenthesis,
+    RightParen,
 
     #[token("[")]
     LeftBracket,
@@ -184,8 +184,8 @@ mod tests {
         let expected = &[
             Functio,
             Identifier("test".to_owned()),
-            LeftParenthesis,
-            RightParenthesis,
+            LeftParen,
+            RightParen,
             LeftCurly,
             Variable,
             Identifier("a".to_owned()),

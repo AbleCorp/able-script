@@ -5,7 +5,7 @@
 //!
 //! Expressions are just operations and they cannot be
 //! used as statements. Functions in AbleScript are in fact
-//! just plain subroutines and they do not return any value, 
+//! just plain subroutines and they do not return any value,
 //! so their calls are statements.
 
 use crate::variables::Value;
@@ -16,6 +16,12 @@ type Span = std::ops::Range<usize>;
 pub struct Iden {
     pub iden: String,
     pub span: Span,
+}
+
+impl Iden {
+    pub fn new(iden: String, span: Span) -> Self {
+        Self { iden, span }
+    }
 }
 
 #[derive(Debug)]

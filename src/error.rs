@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::brian::InterpretError;
+use crate::{brian::InterpretError, lexer::Token};
 
 #[derive(Debug, Clone)]
 pub struct Error {
@@ -11,7 +11,8 @@ pub struct Error {
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
     SyntaxError(String),
-    EndOfTokenStream,
+    UnexpectedEof,
+    UnexpectedToken(Token),
     InvalidIdentifier,
     UnknownVariable(String),
     MeloVariable(String),
@@ -19,4 +20,15 @@ pub enum ErrorKind {
     TopLevelBreak,
     ArithmeticError,
     BfInterpretError(InterpretError),
+    MissingLhs,
+}
+
+impl Error {
+    pub fn new(kind: ErrorKind, span: Range<usize>) -> Self {
+        Self { kind, span }
+    }
+
+    pub fn unexpected_eof() -> Self {
+        Self::new(ErrorKind::UnexpectedEof, 0..0)
+    }
 }
