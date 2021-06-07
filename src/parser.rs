@@ -39,7 +39,7 @@ impl<'source> Parser<'source> {
                 // T-Dark block (replace `lang` with `script`)
                 Token::TDark => {
                     self.tdark = true;
-                    let block = self.get_block()?;
+                    let mut block = self.get_block()?;
                     ast.append(&mut block.block);
                     self.tdark = false;
                 }
