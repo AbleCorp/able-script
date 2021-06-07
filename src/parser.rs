@@ -134,7 +134,10 @@ impl<'source> Parser<'source> {
     /// Expressions do not have any side effects and the are
     /// only mathematial and logical operations or values.
     fn parse_expr(&mut self, token: Token, buf: &mut Option<Expr>) -> Result<Expr, Error> {
-        let start = self.lexer.span().start;
+        let start = match buf {
+            Some(e) => e.span.start,
+            None => self.lexer.span().start,
+        };
 
         match token {
             // Values
@@ -388,5 +391,112 @@ impl<'source> Parser<'source> {
         Ok(StmtKind::Loop {
             body: self.get_block()?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple_math() {
+        let code = r#"1 * (a + 3) / 666 print;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Print(Expr {
+                kind: ExprKind::BinOp {
+                    lhs: Box::new(Expr {
+                        kind: ExprKind::BinOp {
+                            lhs: Box::new(Expr {
+                                kind: ExprKind::Literal(Value::Int(1)),
+                                span: 0..1,
+                            }),
+                            rhs: Box::new(Expr {
+                                kind: ExprKind::BinOp {
+                                    lhs: Box::new(Expr {
+                                        kind: ExprKind::Variable("a".to_string()),
+                                        span: 5..6,
+                                    }),
+                                    rhs: Box::new(Expr {
+                                        kind: ExprKind::Literal(Value::Int(3)),
+                                        span: 9..10,
+                                    }),
+                                    kind: BinOpKind::Add,
+                                },
+                                span: 5..10,
+                            }),
+                            kind: BinOpKind::Multiply,
+                        },
+                        span: 0..11,
+                    }),
+                    rhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(666)),
+                        span: 14..17,
+                    }),
+                    kind: BinOpKind::Divide,
+                },
+                span: 0..17,
+            }),
+            span: 0..24,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn variable_declaration() {
+        let code = r#"var a = 42;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Var {
+                iden: Iden {
+                    iden: "a".to_string(),
+                    span: 4..5,
+                },
+                init: Some(Expr {
+                    kind: ExprKind::Literal(Value::Int(42)),
+                    span: 8..10,
+                }),
+            },
+            span: 0..11,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn if_flow() {
+        let code = r#"if (a == always) { "Buy Able products!" print; }"#;
+        let expected = &[Stmt {
+            kind: StmtKind::If {
+                cond: Expr {
+                    kind: ExprKind::BinOp {
+                        lhs: Box::new(Expr {
+                            kind: ExprKind::Variable("a".to_owned()),
+                            span: 4..5,
+                        }),
+                        rhs: Box::new(Expr {
+                            kind: ExprKind::Literal(Value::Abool(crate::variables::Abool::Always)),
+                            span: 9..15,
+                        }),
+                        kind: BinOpKind::Equal,
+                    },
+                    span: 4..15,
+                },
+                body: Block {
+                    block: vec![Stmt {
+                        kind: StmtKind::Print(Expr {
+                            kind: ExprKind::Literal(Value::Str("Buy Able products!".to_string())),
+                            span: 19..39,
+                        }),
+                        span: 19..46,
+                    }],
+                },
+            },
+            span: 0..48,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
     }
 }
