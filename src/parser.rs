@@ -59,6 +59,10 @@ impl<'source> Parser<'source> {
                 self.semi_terminated(StmtKind::HopBack)?,
                 start..self.lexer.span().end,
             )),
+            Token::Rlyeh => Ok(Stmt::new(
+                self.semi_terminated(StmtKind::HopBack)?,
+                start..self.lexer.span().end,
+            )),
 
             Token::Identifier(_)
             | Token::Char
@@ -198,7 +202,11 @@ impl<'source> Parser<'source> {
         let mut buf = None;
         Ok(loop {
             match self.lexer.next().ok_or(Error::unexpected_eof())? {
-                t if t == terminate => break buf.take().unwrap(),
+                t if t == terminate => {
+                    break buf
+                        .take()
+                        .ok_or(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span()))?
+                }
                 t => buf = Some(self.parse_expr(t, &mut buf)?),
             }
         })
@@ -225,7 +233,12 @@ impl<'source> Parser<'source> {
         let mut buf = Some(self.parse_expr(init, &mut None)?);
         let r = loop {
             match self.lexer.next().ok_or(Error::unexpected_eof())? {
-                Token::Print => break StmtKind::Print(buf.take().unwrap()),
+                Token::Print => {
+                    break StmtKind::Print(buf.take().ok_or(Error::new(
+                        ErrorKind::UnexpectedToken(Token::Print),
+                        self.lexer.span(),
+                    ))?)
+                }
                 Token::LeftParen => {
                     if let Some(Expr {
                         kind: ExprKind::Variable(iden),
@@ -271,6 +284,7 @@ impl<'source> Parser<'source> {
                 Token::Identifier(i) => {
                     args.push(Iden::new(i, self.lexer.span()));
 
+                    // Require comma (next) or right paren (end) after identifier
                     match self.lexer.next().ok_or(Error::unexpected_eof())? {
                         Token::Comma => continue,
                         Token::RightParen => break,
@@ -297,14 +311,18 @@ impl<'source> Parser<'source> {
         let mut buf = None;
         loop {
             match self.lexer.next().ok_or(Error::unexpected_eof())? {
+                // End of argument list
                 Token::RightParen => {
                     if let Some(expr) = buf.take() {
                         args.push(expr)
                     }
                     break;
                 }
+
+                // Next argument
                 Token::Comma => match buf.take() {
                     Some(expr) => args.push(expr),
+                    // Comma alone
                     None => {
                         return Err(Error::new(
                             ErrorKind::UnexpectedToken(Token::Comma),

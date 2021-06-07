@@ -65,6 +65,7 @@ pub enum StmtKind {
     },
     Print(Expr),
     Melo(Iden),
+    Rlyeh,
 }
 
 impl Stmt {
