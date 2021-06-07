@@ -25,15 +25,15 @@ pub fn repl() {
                         println!(
                             "Error `{:?}` occurred at span: {:?} = `{:?}`",
                             e.kind,
-                            e.position.clone(),
-                            line.slice(e.position.clone())
+                            e.span.clone(),
+                            line.slice(e.span.clone())
                         );
 
                         println!(" | {}", line);
                         println!(
                             "   {}{}-- Here",
-                            " ".repeat(e.position.start),
-                            "^".repeat((e.position.end - e.position.start).max(1))
+                            " ".repeat(e.span.start),
+                            "^".repeat((e.span.end - e.span.start).max(1))
                         );
                     }
                 }

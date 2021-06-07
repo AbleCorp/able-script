@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod ast;
 mod base_55;
 mod brian;
 mod error;
@@ -48,8 +49,8 @@ fn main() {
                     println!(
                         "Error `{:?}` occurred at span: {:?} = `{:?}`",
                         e.kind,
-                        e.position.clone(),
-                        source.slice(e.position)
+                        e.span.clone(),
+                        source.slice(e.span)
                     );
                 }
             }
