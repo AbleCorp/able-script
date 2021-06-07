@@ -77,8 +77,8 @@ impl Stmt {
 /// like math and logical operations or values.
 #[derive(Debug)]
 pub struct Expr {
-    kind: ExprKind,
-    span: Span,
+    pub kind: ExprKind,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -116,7 +116,6 @@ pub enum BinOpKind {
 impl BinOpKind {
     pub fn from_token(t: crate::lexer::Token) -> Result<Self, crate::error::ErrorKind> {
         use crate::lexer::Token;
-        use crate::error::*;
 
         match t {
             Token::Plus => Ok(Self::Add),
@@ -129,7 +128,7 @@ impl BinOpKind {
             Token::NotEqual => Ok(Self::NotEqual),
             Token::And => Ok(Self::And),
             Token::Or => Ok(Self::Or),
-            t=> Err(ErrorKind::UnexpectedToken(t)),
+            t => Err(crate::error::ErrorKind::UnexpectedToken(t)),
         }
     }
 }

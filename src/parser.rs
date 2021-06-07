@@ -48,11 +48,42 @@ impl<'source> Parser<'source> {
                 self.functio_flow()?,
                 start..self.lexer.span().end,
             )),
+            Token::Var => Ok(Stmt::new(self.var_flow()?, start..self.lexer.span().end)),
+            Token::Melo => Ok(Stmt::new(self.melo_flow()?, start..self.lexer.span().end)),
+            Token::Loop => Ok(Stmt::new(self.loop_flow()?, start..self.lexer.span().end)),
+            Token::Break => Ok(Stmt::new(
+                self.semi_terminated(StmtKind::Break)?,
+                start..self.lexer.span().end,
+            )),
+            Token::HopBack => Ok(Stmt::new(
+                self.semi_terminated(StmtKind::HopBack)?,
+                start..self.lexer.span().end,
+            )),
+
+            Token::Identifier(_)
+            | Token::Char
+            | Token::String(_)
+            | Token::Integer(_)
+            | Token::Abool(_)
+            | Token::Bool(_)
+            | Token::LeftParen => Ok(Stmt::new(
+                self.value_flow(token)?,
+                start..self.lexer.span().end,
+            )),
+
             t => Err(Error {
                 kind: ErrorKind::UnexpectedToken(t),
                 span: start..self.lexer.span().end,
             }),
         }
+    }
+
+    /// Require statement to be semicolon terminated
+    ///
+    /// Utility function for short statements
+    fn semi_terminated(&mut self, stmt_kind: StmtKind) -> Result<StmtKind, Error> {
+        self.require(Token::Semicolon)?;
+        Ok(stmt_kind)
     }
 
     /// Require next item to be equal with expected one
@@ -121,11 +152,8 @@ impl<'source> Parser<'source> {
             | Token::GreaterThan
             | Token::And
             | Token::Or => Ok(Expr::new(
-                self.op_flow(
-                    match BinOpKind::from_token(token) {
-                        Ok(op) => op,
-                        Err(e) => return Err(Error::new(e, self.lexer.span())),
-                    },
+                self.binop_flow(
+                    BinOpKind::from_token(token).map_err(|e| Error::new(e, self.lexer.span()))?,
                     buf,
                 )?,
                 start..self.lexer.span().end,
@@ -151,7 +179,7 @@ impl<'source> Parser<'source> {
     /// Generates operation from LHS buffer and next expression as RHS
     ///
     /// This is unaware of precedence, as AbleScript do not have it
-    fn op_flow(&mut self, kind: BinOpKind, lhs: &mut Option<Expr>) -> Result<ExprKind, Error> {
+    fn binop_flow(&mut self, kind: BinOpKind, lhs: &mut Option<Expr>) -> Result<ExprKind, Error> {
         Ok(ExprKind::BinOp {
             lhs: Box::new(
                 lhs.take()
@@ -177,7 +205,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Parse a list of statements between curly braces
-    fn parse_block(&mut self) -> Result<Block, Error> {
+    fn get_block(&mut self) -> Result<Block, Error> {
         self.require(Token::LeftCurly)?;
         let mut block = vec![];
 
@@ -190,6 +218,31 @@ impl<'source> Parser<'source> {
         Ok(Block { block })
     }
 
+    /// If Statement parser gets any kind of value (Identifier or Literal)
+    /// It cannot parse it as it do not parse expressions. Instead of it it
+    /// will parse it to function call or print statement.
+    fn value_flow(&mut self, init: Token) -> Result<StmtKind, Error> {
+        let mut buf = Some(self.parse_expr(init, &mut None)?);
+        let r = loop {
+            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+                Token::Print => break StmtKind::Print(buf.take().unwrap()),
+                Token::LeftParen => {
+                    if let Some(Expr {
+                        kind: ExprKind::Variable(iden),
+                        span,
+                    }) = buf
+                    {
+                        break self.functio_call_flow(Iden::new(iden, span))?;
+                    }
+                }
+                t => buf = Some(self.parse_expr(t, &mut buf)?),
+            }
+        };
+        self.require(Token::Semicolon)?;
+
+        Ok(r)
+    }
+
     /// Parse If flow
     ///
     /// Consists of condition and block, there is no else
@@ -198,7 +251,7 @@ impl<'source> Parser<'source> {
 
         let cond = self.expr_flow(Token::RightParen)?;
 
-        let body = self.parse_block()?;
+        let body = self.get_block()?;
 
         Ok(StmtKind::If { cond, body })
     }
@@ -233,8 +286,63 @@ impl<'source> Parser<'source> {
             }
         }
 
-        let body = self.parse_block()?;
+        let body = self.get_block()?;
 
         Ok(StmtKind::Functio { iden, args, body })
+    }
+
+    /// Parse functio call flow
+    fn functio_call_flow(&mut self, iden: Iden) -> Result<StmtKind, Error> {
+        let mut args = vec![];
+        let mut buf = None;
+        loop {
+            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+                Token::RightParen => {
+                    if let Some(expr) = buf.take() {
+                        args.push(expr)
+                    }
+                    break;
+                }
+                Token::Comma => match buf.take() {
+                    Some(expr) => args.push(expr),
+                    None => {
+                        return Err(Error::new(
+                            ErrorKind::UnexpectedToken(Token::Comma),
+                            self.lexer.span(),
+                        ))
+                    }
+                },
+                t => buf = Some(self.parse_expr(t, &mut buf)?),
+            }
+        }
+
+        Ok(StmtKind::Call { iden, args })
+    }
+
+    /// Parse variable declaration
+    fn var_flow(&mut self) -> Result<StmtKind, Error> {
+        let iden = self.get_iden()?;
+        let init = match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            Token::Equal => Some(self.expr_flow(Token::Semicolon)?),
+            Token::Semicolon => None,
+            t => return Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
+        };
+
+        Ok(StmtKind::Var { iden, init })
+    }
+
+    /// Parse Melo flow
+    fn melo_flow(&mut self) -> Result<StmtKind, Error> {
+        let iden = self.get_iden()?;
+        self.semi_terminated(StmtKind::Melo(iden))
+    }
+
+    /// Parse loop flow
+    ///
+    /// `loop` is an infinite loop, no condition, only body
+    fn loop_flow(&mut self) -> Result<StmtKind, Error> {
+        Ok(StmtKind::Loop {
+            body: self.get_block()?,
+        })
     }
 }

@@ -76,11 +76,11 @@ pub enum Token {
 
     /// Brain fuck FFI
     #[token("bff")]
-    BfFunction,
+    Bff,
 
     /// Variable bro
     #[token("var")]
-    Variable,
+    Var,
 
     /// Prints the preceding things
     #[token("print")]
@@ -187,7 +187,7 @@ mod tests {
             LeftParen,
             RightParen,
             LeftCurly,
-            Variable,
+            Var,
             Identifier("a".to_owned()),
             Equal,
             Integer(3),
