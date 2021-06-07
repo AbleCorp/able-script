@@ -499,4 +499,35 @@ mod tests {
         let ast = Parser::new(code).init().unwrap();
         assert_eq!(ast, expected);
     }
+
+    #[test]
+    fn tdark() {
+        let code = r#"T-Dark { var lang = "lang" + lang; }"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Var {
+                iden: Iden {
+                    iden: "script".to_string(),
+                    span: 13..17,
+                },
+                init: Some(Expr {
+                    kind: ExprKind::BinOp {
+                        lhs: Box::new(Expr {
+                            kind: ExprKind::Literal(Value::Str("script".to_string())),
+                            span: 20..26,
+                        }),
+                        rhs: Box::new(Expr {
+                            kind: ExprKind::Variable("script".to_string()),
+                            span: 29..33,
+                        }),
+                        kind: BinOpKind::Add,
+                    },
+                    span: 20..33,
+                }),
+            },
+            span: 9..34,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
 }
