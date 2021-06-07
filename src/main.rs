@@ -43,7 +43,7 @@ fn main() {
                 Ok(ast) => {
                     println!("{:#?}", ast);
                     let mut env = ExecEnv::new();
-                    println!("{:?}", env.eval_items(&ast));
+                    println!("{:?}", env.eval_stmts(&ast));
                 }
                 Err(e) => {
                     println!(

@@ -3,7 +3,7 @@
 //! To interpret a piece of AbleScript code, you first need to
 //! construct an [ExecEnv], which is responsible for storing the stack
 //! of local variable and function definitions accessible from an
-//! AbleScript snippet. You can then call [ExecEnv::eval_items] to
+//! AbleScript snippet. You can then call [ExecEnv::eval_stmts] to
 //! evaluate or execute any number of expressions or statements.
 
 #[deny(missing_docs)]
@@ -11,12 +11,15 @@ use std::collections::HashMap;
 use std::{
     convert::TryFrom,
     io::{stdout, Write},
+    process::exit,
 };
 
+use rand::random;
+
 use crate::{
+    ast::{Expr, Stmt, StmtKind},
     base_55,
     error::{Error, ErrorKind},
-    parser::item::{Expr, Iden, Item, Stmt},
     variables::{Functio, Value, Variable},
 };
 
@@ -61,12 +64,11 @@ impl ExecEnv {
         }
     }
 
-    /// Evaluate a set of Items in their own stack frame. Return the
-    /// value of the last Item evaluated, or an error if one or more
-    /// of the Items failed to evaluate or if a `break` or `hopback`
-    /// statement occurred at the top level.
-    pub fn eval_items(&mut self, items: &[Item]) -> Result<Value, Error> {
-        match self.eval_items_hs(items)? {
+    /// Execute a set of Statements in their own stack frame. Return
+    /// an error if one or more of the Stmts failed to evaluate, or if
+    /// a `break` or `hopback` statement occurred at the top level.
+    pub fn eval_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, Error> {
+        match self.eval_stmts_hs(stmts)? {
             HaltStatus::Value(v) => Ok(v),
             HaltStatus::Break | HaltStatus::Hopback => Err(Error {
                 // It's an error to issue a `break` outside of a
@@ -77,18 +79,18 @@ impl ExecEnv {
         }
     }
 
-    /// The same as `eval_items`, but report "break" and "hopback"
+    /// The same as `eval_stmts`, but report "break" and "hopback"
     /// exit codes as normal conditions in a HaltStatus enum.
     ///
     /// `interpret`-internal code should typically prefer this
-    /// function over `eval_items`.
-    fn eval_items_hs(&mut self, items: &[Item]) -> Result<HaltStatus, Error> {
+    /// function over `eval_stmts`.
+    fn eval_stmts_hs(&mut self, stmts: &[Stmt]) -> Result<HaltStatus, Error> {
         let init_depth = self.stack.len();
 
         self.stack.push(Default::default());
         let mut final_result = Ok(HaltStatus::Value(Value::Nul));
-        for item in items {
-            final_result = self.eval_item(item);
+        for stmt in stmts {
+            final_result = self.eval_stmt(stmt);
             if !matches!(final_result, Ok(HaltStatus::Value(_))) {
                 break;
             }
@@ -100,138 +102,180 @@ impl ExecEnv {
         final_result
     }
 
-    /// Evaluate a single Item, returning its value or an error.
-    fn eval_item(&mut self, item: &Item) -> Result<HaltStatus, Error> {
-        match item {
-            Item::Expr(expr) => self.eval_expr(expr).map(|v| HaltStatus::Value(v)),
-            Item::Stmt(stmt) => self.eval_stmt(stmt),
-        }
-    }
-
     /// Evaluate an Expr, returning its value or an error.
     fn eval_expr(&self, expr: &Expr) -> Result<Value, Error> {
-        use Expr::*;
+        use crate::ast::BinOpKind::*;
+        use crate::ast::ExprKind::*;
         use Value::*;
 
-        // NOTE(Alex): This block will get a whole lot cleaner once
-        // Ondra's parser stuff gets merged (specifically 97fb19e).
-        // For now, though, we've got a bunch of manually-checked
-        // unreachable!()s in here which makes me sad...
-        Ok(match expr {
-            // Binary expressions.
-            Add { left, right }
-            | Subtract { left, right }
-            | Multiply { left, right }
-            | Divide { left, right }
-            | Lt { left, right }
-            | Gt { left, right }
-            | Eq { left, right }
-            | Neq { left, right }
-            | And { left, right }
-            | Or { left, right } => {
-                let left = self.eval_expr(left)?;
-                let right = self.eval_expr(right)?;
-
-                match expr {
+        Ok(match &expr.kind {
+            BinOp { lhs, rhs, kind } => {
+                let lhs = self.eval_expr(&lhs)?;
+                let rhs = self.eval_expr(&rhs)?;
+                match kind {
                     // Arithmetic operators.
-                    Add { .. }
-                    | Subtract { .. }
-                    | Multiply { .. }
-                    | Divide { .. } => {
-                        let left = i32::try_from(left)?;
-                        let right = i32::try_from(right)?;
+                    Add | Subtract | Multiply | Divide => {
+                        let lhs = i32::try_from(lhs)?;
+                        let rhs = i32::try_from(rhs)?;
 
-                        let res = match expr {
-                            Add { .. } => left.checked_add(right),
-                            Subtract { .. } => left.checked_sub(right),
-                            Multiply { .. } => left.checked_mul(right),
-                            Divide { .. } => left.checked_div(right),
+                        let res = match kind {
+                            Add => lhs.checked_add(rhs),
+                            Subtract => lhs.checked_sub(rhs),
+                            Multiply => lhs.checked_mul(rhs),
+                            Divide => lhs.checked_div(rhs),
                             _ => unreachable!(),
                         }
                         .ok_or(Error {
                             kind: ErrorKind::ArithmeticError,
-                            span: 0..0,
+                            span: expr.span.clone(),
                         })?;
                         Int(res)
                     }
 
                     // Numeric comparisons.
-                    Lt { .. } | Gt { .. } => {
-                        let left = i32::try_from(left)?;
-                        let right = i32::try_from(right)?;
+                    Less | Greater => {
+                        let lhs = i32::try_from(lhs)?;
+                        let rhs = i32::try_from(rhs)?;
 
-                        let res = match expr {
-                            Lt { .. } => left < right,
-                            Gt { .. } => left > right,
+                        let res = match kind {
+                            Less => lhs < rhs,
+                            Greater => lhs > rhs,
                             _ => unreachable!(),
                         };
                         Bool(res)
                     }
 
                     // General comparisons.
-                    Eq { .. } | Neq { .. } => {
-                        let res = match expr {
-                            Eq { .. } => left == right,
-                            Neq { .. } => left != right,
+                    Equal | NotEqual => {
+                        let res = match kind {
+                            Equal => lhs == rhs,
+                            NotEqual => lhs != rhs,
                             _ => unreachable!(),
                         };
                         Bool(res)
                     }
 
                     // Logical connectives.
-                    And { .. } | Or { .. } => {
-                        let left = bool::from(left);
-                        let right = bool::from(right);
-                        let res = match expr {
-                            And { .. } => left && right,
-                            Or { .. } => left || right,
+                    And | Or => {
+                        let lhs = bool::from(lhs);
+                        let rhs = bool::from(rhs);
+                        let res = match kind {
+                            And => lhs && rhs,
+                            Or => lhs || rhs,
                             _ => unreachable!(),
                         };
                         Bool(res)
                     }
-
-                    // That's all the binary operations.
-                    _ => unreachable!(),
                 }
             }
-            Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
+            Not(expr) => Bool(!bool::from(self.eval_expr(&expr)?)),
             Literal(value) => value.clone(),
-            Identifier(Iden(name)) => self.get_var(name)?,
+            Variable(name) => self.get_var(&name)?,
+            // Binary expressions.
+            // Add | Subtract | Multiply | Divide | Lt | Gt | Eq | Neq | And | Or => {
+            //     let lhs = self.eval_expr(lhs)?;
+            //     let rhs = self.eval_expr(rhs)?;
+
+            //     match expr {
+            //         // Arithmetic operators.
+            //         Add { .. } | Subtract { .. } | Multiply { .. } | Divide { .. } => {
+            //             let lhs = i32::try_from(lhs)?;
+            //             let rhs = i32::try_from(rhs)?;
+
+            //             let res = match expr {
+            //                 Add { .. } => lhs.checked_add(rhs),
+            //                 Subtract { .. } => lhs.checked_sub(rhs),
+            //                 Multiply { .. } => lhs.checked_mul(rhs),
+            //                 Divide { .. } => lhs.checked_div(rhs),
+            //                 _ => unreachable!(),
+            //             }
+            //             .ok_or(Error {
+            //                 kind: ErrorKind::ArithmeticError,
+            //                 position: 0..0,
+            //             })?;
+            //             Int(res)
+            //         }
+
+            //         // Numeric comparisons.
+            //         Lt { .. } | Gt { .. } => {
+            //             let lhs = i32::try_from(lhs)?;
+            //             let rhs = i32::try_from(rhs)?;
+
+            //             let res = match expr {
+            //                 Lt { .. } => lhs < rhs,
+            //                 Gt { .. } => lhs > rhs,
+            //                 _ => unreachable!(),
+            //             };
+            //             Bool(res)
+            //         }
+
+            //         // General comparisons.
+            //         Eq { .. } | Neq { .. } => {
+            //             let res = match expr {
+            //                 Eq { .. } => lhs == rhs,
+            //                 Neq { .. } => lhs != rhs,
+            //                 _ => unreachable!(),
+            //             };
+            //             Bool(res)
+            //         }
+
+            //         // Logical connectives.
+            //         And { .. } | Or { .. } => {
+            //             let lhs = bool::from(lhs);
+            //             let rhs = bool::from(rhs);
+            //             let res = match expr {
+            //                 And { .. } => lhs && rhs,
+            //                 Or { .. } => lhs || rhs,
+            //                 _ => unreachable!(),
+            //             };
+            //             Bool(res)
+            //         }
+
+            //         // That's all the binary operations.
+            //         _ => unreachable!(),
+            //     }
+            // }
+            // Not(expr) => Bool(!bool::from(self.eval_expr(expr)?)),
+            // Literal(value) => value.clone(),
+            // Identifier(Iden(name)) => self.get_var(name)?,
         })
     }
 
     /// Perform the action indicated by a statement.
     fn eval_stmt(&mut self, stmt: &Stmt) -> Result<HaltStatus, Error> {
-        match stmt {
-            Stmt::Print(expr) => {
+        match &stmt.kind {
+            StmtKind::Print(expr) => {
                 println!("{}", self.eval_expr(expr)?);
             }
-            Stmt::VariableDeclaration { iden, init } => {
+            StmtKind::Var { iden, init } => {
                 let init = match init {
                     Some(e) => self.eval_expr(e)?,
                     None => Value::Nul,
                 };
 
-                self.decl_var(&iden.0, init);
+                self.decl_var(&iden.iden, init);
             }
-            Stmt::FunctionDeclaration {
+            StmtKind::Functio {
                 iden: _,
                 args: _,
                 body: _,
             } => todo!(),
-            Stmt::BfFDeclaration { iden, body } => {
-                self.decl_var(
-                    &iden.0,
-                    Value::Functio(Functio::BfFunctio(body.as_bytes().into())),
-                );
-            }
-            Stmt::If { cond, body } => {
+            // This is missing from StmtKind after the interpreter
+            // rewrite; presumably, parsing is not yet implemented for
+            // it. ~~Alex
+            // StmtKind::BfFDeclaration { iden, body } => {
+            //     self.decl_var(
+            //         &iden.0,
+            //         Value::Functio(Functio::BfFunctio(body.as_bytes().into())),
+            //     );
+            // }
+            StmtKind::If { cond, body } => {
                 if self.eval_expr(cond)?.into() {
-                    return self.eval_items_hs(body);
+                    return self.eval_stmts_hs(&body.block);
                 }
             }
-            Stmt::FunctionCall { iden, args } => {
-                let func = self.get_var(&iden.0)?;
+            StmtKind::Call { iden, args } => {
+                let func = self.get_var(&iden.iden)?;
                 match func {
                     Value::Functio(func) => {
                         match func {
@@ -246,7 +290,7 @@ impl ExecEnv {
                                 crate::brian::interpret_with_io(&body, &input as &[_], &mut output)
                                     .map_err(|e| Error {
                                         kind: ErrorKind::BfInterpretError(e),
-                                        span: 0..0,
+                                        span: stmt.span.clone(),
                                     })?;
 
                                 // I guess Brainfuck functions write
@@ -263,31 +307,37 @@ impl ExecEnv {
                     }
                     _ => {
                         return Err(Error {
-                            kind: ErrorKind::TypeError(iden.0.to_owned()),
-                            span: 0..0,
+                            kind: ErrorKind::TypeError(iden.iden.to_owned()),
+                            span: stmt.span.clone(),
                         })
                     }
                 }
             }
-            Stmt::Loop { body } => loop {
-                let res = self.eval_items_hs(body)?;
+            StmtKind::Loop { body } => loop {
+                let res = self.eval_stmts_hs(&body.block)?;
                 match res {
                     HaltStatus::Value(_) => {}
                     HaltStatus::Break => break,
                     HaltStatus::Hopback => continue,
                 }
             },
-            Stmt::VarAssignment { iden, value } => {
-                self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
-            }
-            Stmt::Break => {
+            // This is missing as well. ~~Alex
+            // StmtKind::VarAssignment { iden, value } => {
+            //     self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
+            // }
+            StmtKind::Break => {
                 return Ok(HaltStatus::Break);
             }
-            Stmt::HopBack => {
+            StmtKind::HopBack => {
                 return Ok(HaltStatus::Hopback);
             }
-            Stmt::Melo(iden) => {
-                self.get_var_mut(&iden.0)?.melo = true;
+            StmtKind::Melo(iden) => {
+                self.get_var_mut(&iden.iden)?.melo = true;
+            }
+            StmtKind::Rlyeh => {
+                // Maybe print a creepy error message or something
+                // here at some point. ~~Alex
+                exit(random());
             }
         }
 
@@ -371,6 +421,8 @@ impl ExecEnv {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::ExprKind;
+
     use super::*;
 
     #[test]
@@ -378,10 +430,20 @@ mod tests {
         // Check that 2 + 2 = 4.
         let mut env = ExecEnv::new();
         assert_eq!(
-            env.eval_items(&[Item::Expr(Expr::Add {
-                left: Box::new(Expr::Literal(Value::Int(2))),
-                right: Box::new(Expr::Literal(Value::Int(2))),
-            })])
+            env.eval_expr(&Expr {
+                kind: ExprKind::BinOp {
+                    lhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(2)),
+                        span: 0..0,
+                    }),
+                    rhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(2)),
+                        span: 0..0,
+                    }),
+                    kind: crate::ast::BinOpKind::Add,
+                },
+                span: 0..0
+            })
             .unwrap(),
             Value::Int(4)
         )
@@ -393,10 +455,20 @@ mod tests {
         // error.
         let mut env = ExecEnv::new();
         assert!(matches!(
-            env.eval_items(&[Item::Expr(Expr::Add {
-                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
-                right: Box::new(Expr::Literal(Value::Bool(false))),
-            })]),
+            env.eval_expr(&Expr {
+                kind: ExprKind::BinOp {
+                    lhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(2)),
+                        span: 0..0,
+                    }),
+                    rhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Bool(true)),
+                        span: 0..0,
+                    }),
+                    kind: crate::ast::BinOpKind::Add,
+                },
+                span: 0..0
+            }),
             Err(Error {
                 kind: ErrorKind::TypeError(_),
                 span: _,
@@ -410,10 +482,20 @@ mod tests {
         // of panicking.
         let mut env = ExecEnv::new();
         assert!(matches!(
-            env.eval_items(&[Item::Expr(Expr::Add {
-                left: Box::new(Expr::Literal(Value::Int(i32::MAX))),
-                right: Box::new(Expr::Literal(Value::Int(1))),
-            })]),
+            env.eval_expr(&Expr {
+                kind: ExprKind::BinOp {
+                    lhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(i32::MAX)),
+                        span: 0..0,
+                    }),
+                    rhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(1)),
+                        span: 0..0,
+                    }),
+                    kind: crate::ast::BinOpKind::Add,
+                },
+                span: 0..0
+            }),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
                 span: _,
@@ -422,10 +504,20 @@ mod tests {
 
         // And the same for divide by zero.
         assert!(matches!(
-            env.eval_items(&[Item::Expr(Expr::Divide {
-                left: Box::new(Expr::Literal(Value::Int(1))),
-                right: Box::new(Expr::Literal(Value::Int(0))),
-            })]),
+            env.eval_expr(&Expr {
+                kind: ExprKind::BinOp {
+                    lhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(1)),
+                        span: 0..0,
+                    }),
+                    rhs: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Int(0)),
+                        span: 0..0,
+                    }),
+                    kind: crate::ast::BinOpKind::Add,
+                },
+                span: 0..0
+            }),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
                 span: _,

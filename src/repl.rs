@@ -19,7 +19,7 @@ pub fn repl() {
                 match ast {
                     Ok(ast) => {
                         println!("{:?}", ast);
-                        println!("{:?}", env.eval_items(&ast));
+                        println!("{:?}", env.eval_stmts(&ast));
                     }
                     Err(e) => {
                         println!(

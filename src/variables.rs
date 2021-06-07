@@ -2,8 +2,11 @@ use std::{convert::TryFrom, fmt::Display, io::Write};
 
 use rand::Rng;
 
-use crate::ast::{Expr, Stmt};
-use crate::error::{Error, ErrorKind};
+use crate::{
+    ast::Stmt,
+    error::{Error, ErrorKind},
+};
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Abool {
     Never = -1,
@@ -31,13 +34,13 @@ impl From<Abool> for bool {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Functio {
     BfFunctio(Vec<u8>),
     AbleFunctio(Vec<Stmt>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Nul,
     Str(String),
