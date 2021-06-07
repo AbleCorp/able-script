@@ -12,7 +12,7 @@ use crate::variables::Value;
 
 type Span = std::ops::Range<usize>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Iden {
     pub iden: String,
     pub span: Span,
@@ -24,19 +24,19 @@ impl Iden {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub block: Vec<Stmt>,
 }
 
 /// A syntactic unit expressing an effect.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum StmtKind {
     // Control flow
     If {
@@ -76,13 +76,13 @@ impl Stmt {
 
 /// Expression is parse unit which do not cause any effect,
 /// like math and logical operations or values.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExprKind {
     BinOp {
         lhs: Box<Expr>,
@@ -100,7 +100,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BinOpKind {
     Add,
     Subtract,

@@ -14,6 +14,7 @@ use crate::variables::Value;
 /// Make one using [`Parser::new`] function
 pub struct Parser<'source> {
     lexer: Lexer<'source, Token>,
+    tdark: bool,
 }
 
 impl<'source> Parser<'source> {
@@ -21,6 +22,7 @@ impl<'source> Parser<'source> {
     pub fn new(source: &'source str) -> Self {
         Self {
             lexer: Token::lexer(source),
+            tdark: false,
         }
     }
 
@@ -30,7 +32,19 @@ impl<'source> Parser<'source> {
     pub fn init(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut ast = vec![];
         while let Some(token) = self.lexer.next() {
-            ast.push(self.parse(token)?);
+            match token {
+                // Ignore comments
+                Token::Comment => continue,
+
+                // T-Dark block (replace `lang` with `script`)
+                Token::TDark => {
+                    self.tdark = true;
+                    let block = self.get_block()?;
+                    ast.append(&mut block.block);
+                    self.tdark = false;
+                }
+                token => ast.push(self.parse(token)?),
+            }
         }
         Ok(ast)
     }
@@ -103,7 +117,11 @@ impl<'source> Parser<'source> {
     fn get_iden(&mut self) -> Result<Iden, Error> {
         match self.lexer.next().ok_or(Error::unexpected_eof())? {
             Token::Identifier(iden) => Ok(Iden {
-                iden,
+                iden: if self.tdark {
+                    iden.replace("lang", "script")
+                } else {
+                    iden
+                },
                 span: self.lexer.span(),
             }),
             t => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
@@ -121,7 +139,11 @@ impl<'source> Parser<'source> {
         match token {
             // Values
             Token::Identifier(i) => Ok(Expr::new(
-                ExprKind::Variable(i),
+                ExprKind::Variable(if self.tdark {
+                    i.replace("lang", "script")
+                } else {
+                    i
+                }),
                 start..self.lexer.span().end,
             )),
             Token::Abool(a) => Ok(Expr::new(
@@ -137,7 +159,11 @@ impl<'source> Parser<'source> {
                 start..self.lexer.span().end,
             )),
             Token::String(s) => Ok(Expr::new(
-                ExprKind::Literal(Value::Str(s)),
+                ExprKind::Literal(Value::Str(if self.tdark {
+                    s.replace("lang", "script")
+                } else {
+                    s
+                })),
                 start..self.lexer.span().end,
             )),
             Token::Nul => Ok(Expr::new(

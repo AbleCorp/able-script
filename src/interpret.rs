@@ -72,7 +72,7 @@ impl ExecEnv {
                 // It's an error to issue a `break` outside of a
                 // `loop` statement.
                 kind: ErrorKind::TopLevelBreak,
-                position: 0..0,
+                span: 0..0,
             }),
         }
     }
@@ -150,7 +150,7 @@ impl ExecEnv {
                         }
                         .ok_or(Error {
                             kind: ErrorKind::ArithmeticError,
-                            position: 0..0,
+                            span: 0..0,
                         })?;
                         Int(res)
                     }
@@ -246,7 +246,7 @@ impl ExecEnv {
                                 crate::brian::interpret_with_io(&body, &input as &[_], &mut output)
                                     .map_err(|e| Error {
                                         kind: ErrorKind::BfInterpretError(e),
-                                        position: 0..0,
+                                        span: 0..0,
                                     })?;
 
                                 // I guess Brainfuck functions write
@@ -264,7 +264,7 @@ impl ExecEnv {
                     _ => {
                         return Err(Error {
                             kind: ErrorKind::TypeError(iden.0.to_owned()),
-                            position: 0..0,
+                            span: 0..0,
                         })
                     }
                 }
@@ -319,13 +319,13 @@ impl ExecEnv {
                         kind: ErrorKind::MeloVariable(name.to_owned()),
                         // TODO: figure out some way to avoid this
                         // 0..0 dumbness
-                        position: 0..0,
+                        span: 0..0,
                     })
                 }
             }
             None => Err(Error {
                 kind: ErrorKind::UnknownVariable(name.to_owned()),
-                position: 0..0,
+                span: 0..0,
             }),
         }
     }
@@ -347,13 +347,13 @@ impl ExecEnv {
                 } else {
                     Err(Error {
                         kind: ErrorKind::MeloVariable(name.to_owned()),
-                        position: 0..0,
+                        span: 0..0,
                     })
                 }
             }
             None => Err(Error {
                 kind: ErrorKind::UnknownVariable(name.to_owned()),
-                position: 0..0,
+                span: 0..0,
             }),
         }
     }
@@ -399,7 +399,7 @@ mod tests {
             })]),
             Err(Error {
                 kind: ErrorKind::TypeError(_),
-                position: _,
+                span: _,
             })
         ));
     }
@@ -416,7 +416,7 @@ mod tests {
             })]),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
-                position: _,
+                span: _,
             })
         ));
 
@@ -428,7 +428,7 @@ mod tests {
             })]),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
-                position: _,
+                span: _,
             })
         ));
     }

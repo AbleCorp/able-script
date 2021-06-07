@@ -2,11 +2,8 @@ use std::{convert::TryFrom, fmt::Display, io::Write};
 
 use rand::Rng;
 
-use crate::{
-    error::{Error, ErrorKind},
-    parser::item::Item,
-};
-
+use crate::ast::{Expr, Stmt};
+use crate::error::{Error, ErrorKind};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Abool {
     Never = -1,
@@ -37,7 +34,7 @@ impl From<Abool> for bool {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Functio {
     BfFunctio(Vec<u8>),
-    AbleFunctio(Vec<Item>),
+    AbleFunctio(Vec<Stmt>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -147,7 +144,7 @@ impl TryFrom<Value> for i32 {
                 // this `position` correctly, or re-write the
                 // `error::Error` struct so we can omit the `position`
                 // when using some error kinds.
-                position: 0..0,
+                span: 0..0,
             }),
         }
     }
