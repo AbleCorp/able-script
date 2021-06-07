@@ -118,7 +118,9 @@ impl<'source> Parser<'source> {
             | Token::EqualEqual
             | Token::NotEqual
             | Token::LessThan
-            | Token::GreaterThan => Ok(Expr::new(
+            | Token::GreaterThan
+            | Token::And
+            | Token::Or => Ok(Expr::new(
                 self.op_flow(
                     match BinOpKind::from_token(token) {
                         Ok(op) => op,
