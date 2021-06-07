@@ -112,3 +112,24 @@ pub enum BinOpKind {
     And,
     Or,
 }
+
+impl BinOpKind {
+    pub fn from_token(t: crate::lexer::Token) -> Result<Self, crate::error::ErrorKind> {
+        use crate::lexer::Token;
+        use crate::error::*;
+
+        match t {
+            Token::Plus => Ok(Self::Add),
+            Token::Minus => Ok(Self::Subtract),
+            Token::Star => Ok(Self::Multiply),
+            Token::FwdSlash => Ok(Self::Divide),
+            Token::GreaterThan => Ok(Self::Greater),
+            Token::LessThan => Ok(Self::Less),
+            Token::EqualEqual => Ok(Self::Equal),
+            Token::NotEqual => Ok(Self::NotEqual),
+            Token::And => Ok(Self::And),
+            Token::Or => Ok(Self::Or),
+            t=> Err(ErrorKind::UnexpectedToken(t)),
+        }
+    }
+}

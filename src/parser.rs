@@ -111,44 +111,21 @@ impl<'source> Parser<'source> {
             )),
 
             // Operations
-            Token::Plus => Ok(Expr::new(
-                self.op_flow(BinOpKind::Add, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::Minus => Ok(Expr::new(
-                self.op_flow(BinOpKind::Subtract, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::Star => Ok(Expr::new(
-                self.op_flow(BinOpKind::Multiply, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::FwdSlash => Ok(Expr::new(
-                self.op_flow(BinOpKind::Divide, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::EqualEqual => Ok(Expr::new(
-                self.op_flow(BinOpKind::Equal, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::NotEqual => Ok(Expr::new(
-                self.op_flow(BinOpKind::NotEqual, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::And => Ok(Expr::new(
-                self.op_flow(BinOpKind::And, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::Or => Ok(Expr::new(
-                self.op_flow(BinOpKind::Or, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::LessThan => Ok(Expr::new(
-                self.op_flow(BinOpKind::Less, buf)?,
-                start..self.lexer.span().end,
-            )),
-            Token::GreaterThan => Ok(Expr::new(
-                self.op_flow(BinOpKind::Greater, buf)?,
+            Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::FwdSlash
+            | Token::EqualEqual
+            | Token::NotEqual
+            | Token::LessThan
+            | Token::GreaterThan => Ok(Expr::new(
+                self.op_flow(
+                    match BinOpKind::from_token(token) {
+                        Ok(op) => op,
+                        Err(e) => return Err(Error::new(e, self.lexer.span())),
+                    },
+                    buf,
+                )?,
                 start..self.lexer.span().end,
             )),
 
@@ -218,7 +195,7 @@ impl<'source> Parser<'source> {
         self.require(Token::LeftParen)?;
 
         let cond = self.expr_flow(Token::RightParen)?;
-        
+
         let body = self.parse_block()?;
 
         Ok(StmtKind::If { cond, body })
