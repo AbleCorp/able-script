@@ -15,27 +15,25 @@ pub fn repl() {
                     break;
                 }
                 let mut parser = Parser::new(&line);
-                let ast = parser.init();
-                match ast {
-                    Ok(ast) => {
-                        println!("{:?}", ast);
-                        println!("{:?}", env.eval_stmts(&ast));
-                    }
-                    Err(e) => {
-                        println!(
-                            "Error `{:?}` occurred at span: {:?} = `{:?}`",
-                            e.kind,
-                            e.span.clone(),
-                            line.slice(e.span.clone())
-                        );
+                let value = parser.init().and_then(|ast| {
+                    println!("{:?}", &ast);
+                    env.eval_stmts(&ast)
+                });
 
-                        println!(" | {}", line);
-                        println!(
-                            "   {}{}-- Here",
-                            " ".repeat(e.span.start),
-                            "^".repeat((e.span.end - e.span.start).max(1))
-                        );
-                    }
+                if let Err(e) = value {
+                    println!(
+                        "Error `{:?}` occurred at span: {:?} = `{:?}`",
+                        e.kind,
+                        e.span.clone(),
+                        line.slice(e.span.clone())
+                    );
+
+                    println!(" | {}", line);
+                    println!(
+                        "   {}{}-- Here",
+                        " ".repeat(e.span.start),
+                        "^".repeat((e.span.end - e.span.start).max(1))
+                    );
                 }
             }
             Err(rustyline::error::ReadlineError::Eof) => {
