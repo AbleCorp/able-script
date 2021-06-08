@@ -28,7 +28,9 @@ impl Error {
         Self { kind, span }
     }
 
-    pub fn unexpected_eof() -> Self {
-        Self::new(ErrorKind::UnexpectedEof, 0..0)
+    /// Create an UnexpectedEof error, where the EOF occurs at the
+    /// given index in the file.
+    pub fn unexpected_eof(index: usize) -> Self {
+        Self::new(ErrorKind::UnexpectedEof, index..index)
     }
 }

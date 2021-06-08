@@ -109,13 +109,17 @@ impl<'source> Parser<'source> {
         match self.lexer.next() {
             Some(t) if t == expected => Ok(()),
             Some(t) => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
-            None => Err(Error::unexpected_eof()),
+            None => Err(Error::unexpected_eof(self.lexer.span().start)),
         }
     }
 
     /// Get an Identifier
     fn get_iden(&mut self) -> Result<Iden, Error> {
-        match self.lexer.next().ok_or(Error::unexpected_eof())? {
+        match self
+            .lexer
+            .next()
+            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+        {
             Token::Identifier(iden) => Ok(Iden {
                 iden: if self.tdark {
                     iden.replace("lang", "script")
@@ -194,7 +198,10 @@ impl<'source> Parser<'source> {
 
             Token::Not => Ok(Expr::new(
                 {
-                    let next = self.lexer.next().ok_or(Error::unexpected_eof())?;
+                    let next = self
+                        .lexer
+                        .next()
+                        .ok_or(Error::unexpected_eof(self.lexer.span().start))?;
                     ExprKind::Not(Box::new(self.parse_expr(next, buf)?))
                 },
                 start..self.lexer.span().end,
@@ -219,7 +226,10 @@ impl<'source> Parser<'source> {
                     .ok_or(Error::new(ErrorKind::MissingLhs, self.lexer.span()))?,
             ),
             rhs: {
-                let next = self.lexer.next().ok_or(Error::unexpected_eof())?;
+                let next = self
+                    .lexer
+                    .next()
+                    .ok_or(Error::unexpected_eof(self.lexer.span().start))?;
                 Box::new(self.parse_expr(next, &mut None)?)
             },
             kind,
@@ -230,7 +240,11 @@ impl<'source> Parser<'source> {
     fn expr_flow(&mut self, terminate: Token) -> Result<Expr, Error> {
         let mut buf = None;
         Ok(loop {
-            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
                 t if t == terminate => {
                     break buf
                         .take()
@@ -247,7 +261,11 @@ impl<'source> Parser<'source> {
         let mut block = vec![];
 
         loop {
-            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
                 Token::RightCurly => break,
                 t => block.push(self.parse(t)?),
             }
@@ -261,7 +279,11 @@ impl<'source> Parser<'source> {
     fn value_flow(&mut self, init: Token) -> Result<StmtKind, Error> {
         let mut buf = Some(self.parse_expr(init, &mut None)?);
         let r = loop {
-            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
                 Token::Print => {
                     break StmtKind::Print(buf.take().ok_or(Error::new(
                         ErrorKind::UnexpectedToken(Token::Print),
@@ -308,13 +330,21 @@ impl<'source> Parser<'source> {
 
         let mut args = vec![];
         loop {
-            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
                 Token::RightParen => break,
                 Token::Identifier(i) => {
                     args.push(Iden::new(i, self.lexer.span()));
 
                     // Require comma (next) or right paren (end) after identifier
-                    match self.lexer.next().ok_or(Error::unexpected_eof())? {
+                    match self
+                        .lexer
+                        .next()
+                        .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                    {
                         Token::Comma => continue,
                         Token::RightParen => break,
                         t => {
@@ -339,7 +369,11 @@ impl<'source> Parser<'source> {
         let mut args = vec![];
         let mut buf = None;
         loop {
-            match self.lexer.next().ok_or(Error::unexpected_eof())? {
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
                 // End of argument list
                 Token::RightParen => {
                     if let Some(expr) = buf.take() {
@@ -369,7 +403,11 @@ impl<'source> Parser<'source> {
     /// Parse variable declaration
     fn var_flow(&mut self) -> Result<StmtKind, Error> {
         let iden = self.get_iden()?;
-        let init = match self.lexer.next().ok_or(Error::unexpected_eof())? {
+        let init = match self
+            .lexer
+            .next()
+            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+        {
             Token::Equal => Some(self.expr_flow(Token::Semicolon)?),
             Token::Semicolon => None,
             t => return Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
