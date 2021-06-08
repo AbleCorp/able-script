@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, fmt::Display, io::Write};
+use std::{fmt::Display, io::Write, ops::Range};
 
 use rand::Rng;
 
@@ -51,7 +51,7 @@ pub enum Value {
 }
 
 impl Value {
-    /// Writes an AbleScript value to a Brainfuck input stream. This
+    /// Write an AbleScript value to a Brainfuck input stream. This
     /// should generally only be called on `Write`rs that cannot fail,
     /// e.g., `Vec<u8>`, because any IO errors will cause a panic.
     ///
@@ -105,6 +105,38 @@ impl Value {
         }
         .expect("Failed to write to Brainfuck input");
     }
+
+    /// Attempt to coerce a Value to an integer. If the conversion
+    /// fails, the generated error message is associated with the
+    /// given span.
+    pub fn to_i32(self, span: &Range<usize>) -> Result<i32, Error> {
+        match self {
+            Value::Int(i) => Ok(i),
+            _ => Err(Error {
+                kind: ErrorKind::TypeError(format!("Expected int, got {}", self)),
+                span: span.clone(),
+            }),
+        }
+    }
+
+    /// Coerce a Value to a boolean. The conversion cannot fail.
+    pub fn to_bool(self) -> bool {
+        match self {
+            // Booleans and abooleans have a trivial conversion.
+            Value::Bool(b) => b,
+            Value::Abool(b) => b.into(),
+            // The empty string is falsey, other strings are truthy.
+            Value::Str(s) => s.len() != 0,
+            // 0 is falsey, nonzero is truthy.
+            Value::Int(x) => x != 0,
+            // Functios are always truthy.
+            Value::Functio(_) => true,
+            // And nul is truthy as a symbol of the fact that the
+            // deep, fundamental truth of this world is nothing but
+            // the eternal void.
+            Value::Nul => true,
+        }
+    }
 }
 
 impl Display for Value {
@@ -130,48 +162,6 @@ impl Display for Value {
                     write!(f, "{:?}", source)
                 }
             },
-        }
-    }
-}
-
-impl TryFrom<Value> for i32 {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Int(i) => Ok(i),
-            _ => Err(Error {
-                kind: ErrorKind::TypeError(format!("Expected int, got {}", value)),
-                // TODO: either add some kind of metadata to `Value`
-                // so we can tell where the value came from and assign
-                // this `position` correctly, or re-write the
-                // `error::Error` struct so we can omit the `position`
-                // when using some error kinds.
-                span: 0..0,
-            }),
-        }
-    }
-}
-
-// Coercions from a value to a boolean always succeed, so every value
-// can be used in an `if` statement. C does things that way, so how
-// could it possibly be a bad idea?
-impl From<Value> for bool {
-    fn from(value: Value) -> Self {
-        match value {
-            // Booleans and abooleans have a trivial conversion.
-            Value::Bool(b) => b,
-            Value::Abool(b) => b.into(),
-            // The empty string is falsey, other strings are truthy.
-            Value::Str(s) => s.len() != 0,
-            // 0 is falsey, nonzero is truthy.
-            Value::Int(x) => x != 0,
-            // Functios are always truthy.
-            Value::Functio(_) => true,
-            // And nul is truthy as a symbol of the fact that the
-            // deep, fundamental truth of this world is nothing but
-            // the eternal void.
-            Value::Nul => true,
         }
     }
 }

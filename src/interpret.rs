@@ -7,17 +7,18 @@
 //! evaluate or execute any number of expressions or statements.
 
 #[deny(missing_docs)]
-use std::collections::HashMap;
 use std::{
-    convert::TryFrom,
+    collections::HashMap,
     io::{stdout, Write},
+    ops::Range,
     process::exit,
+    usize,
 };
 
 use rand::random;
 
 use crate::{
-    ast::{Expr, Stmt, StmtKind},
+    ast::{Expr, Iden, Stmt, StmtKind},
     base_55,
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
@@ -43,16 +44,16 @@ struct Scope {
 
 /// The reason a successful series of statements halted.
 enum HaltStatus {
-    /// The last statement in the list evaluated to this value.
-    Value(Value),
+    /// We ran out of statements to execute.
+    Finished,
 
-    /// A `break` statement occurred and was not caught by a `loop`
-    /// statement.
-    Break,
+    /// A `break` statement occurred at the given span, and was not
+    /// caught by a `loop` statement up to this point.
+    Break(Range<usize>),
 
-    /// A `hopback` statement occurred and was not caught by a `loop`
-    /// statement.
-    Hopback,
+    /// A `hopback` statement occurred at the given span, and was not
+    /// caught by a `loop` statement up to this point.
+    Hopback(Range<usize>),
 }
 
 impl ExecEnv {
@@ -67,14 +68,14 @@ impl ExecEnv {
     /// Execute a set of Statements in their own stack frame. Return
     /// an error if one or more of the Stmts failed to evaluate, or if
     /// a `break` or `hopback` statement occurred at the top level.
-    pub fn eval_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, Error> {
+    pub fn eval_stmts(&mut self, stmts: &[Stmt]) -> Result<(), Error> {
         match self.eval_stmts_hs(stmts)? {
-            HaltStatus::Value(v) => Ok(v),
-            HaltStatus::Break | HaltStatus::Hopback => Err(Error {
+            HaltStatus::Finished => Ok(()),
+            HaltStatus::Break(span) | HaltStatus::Hopback(span) => Err(Error {
                 // It's an error to issue a `break` outside of a
                 // `loop` statement.
                 kind: ErrorKind::TopLevelBreak,
-                span: 0..0,
+                span: span,
             }),
         }
     }
@@ -88,10 +89,10 @@ impl ExecEnv {
         let init_depth = self.stack.len();
 
         self.stack.push(Default::default());
-        let mut final_result = Ok(HaltStatus::Value(Value::Nul));
+        let mut final_result = Ok(HaltStatus::Finished);
         for stmt in stmts {
             final_result = self.eval_stmt(stmt);
-            if !matches!(final_result, Ok(HaltStatus::Value(_))) {
+            if !matches!(final_result, Ok(HaltStatus::Finished)) {
                 break;
             }
         }
@@ -115,8 +116,8 @@ impl ExecEnv {
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
-                        let lhs = i32::try_from(lhs)?;
-                        let rhs = i32::try_from(rhs)?;
+                        let lhs = lhs.to_i32(&expr.span)?;
+                        let rhs = rhs.to_i32(&expr.span)?;
 
                         let res = match kind {
                             Add => lhs.checked_add(rhs),
@@ -134,8 +135,8 @@ impl ExecEnv {
 
                     // Numeric comparisons.
                     Less | Greater => {
-                        let lhs = i32::try_from(lhs)?;
-                        let rhs = i32::try_from(rhs)?;
+                        let lhs = lhs.to_i32(&expr.span)?;
+                        let rhs = rhs.to_i32(&expr.span)?;
 
                         let res = match kind {
                             Less => lhs < rhs,
@@ -157,8 +158,8 @@ impl ExecEnv {
 
                     // Logical connectives.
                     And | Or => {
-                        let lhs = bool::from(lhs);
-                        let rhs = bool::from(rhs);
+                        let lhs = lhs.to_bool();
+                        let rhs = rhs.to_bool();
                         let res = match kind {
                             And => lhs && rhs,
                             Or => lhs || rhs,
@@ -168,9 +169,15 @@ impl ExecEnv {
                     }
                 }
             }
-            Not(expr) => Bool(!bool::from(self.eval_expr(&expr)?)),
+            Not(expr) => Bool(!self.eval_expr(&expr)?.to_bool()),
             Literal(value) => value.clone(),
-            Variable(name) => self.get_var(&name)?,
+
+            // TODO: not too happy with constructing an artificial
+            // Iden here.
+            Variable(name) => self.get_var(&Iden {
+                iden: name.to_owned(),
+                span: expr.span.clone(),
+            })?,
         })
     }
 
@@ -203,12 +210,12 @@ impl ExecEnv {
             //     );
             // }
             StmtKind::If { cond, body } => {
-                if self.eval_expr(cond)?.into() {
+                if self.eval_expr(cond)?.to_bool() {
                     return self.eval_stmts_hs(&body.block);
                 }
             }
             StmtKind::Call { iden, args } => {
-                let func = self.get_var(&iden.iden)?;
+                let func = self.get_var(&iden)?;
                 match func {
                     Value::Functio(func) => {
                         match func {
@@ -249,9 +256,9 @@ impl ExecEnv {
             StmtKind::Loop { body } => loop {
                 let res = self.eval_stmts_hs(&body.block)?;
                 match res {
-                    HaltStatus::Value(_) => {}
-                    HaltStatus::Break => break,
-                    HaltStatus::Hopback => continue,
+                    HaltStatus::Finished => {}
+                    HaltStatus::Break(_) => break,
+                    HaltStatus::Hopback(_) => continue,
                 }
             },
             // This is missing as well. ~~Alex
@@ -259,13 +266,13 @@ impl ExecEnv {
             //     self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
             // }
             StmtKind::Break => {
-                return Ok(HaltStatus::Break);
+                return Ok(HaltStatus::Break(stmt.span.clone()));
             }
             StmtKind::HopBack => {
-                return Ok(HaltStatus::Hopback);
+                return Ok(HaltStatus::Hopback(stmt.span.clone()));
             }
             StmtKind::Melo(iden) => {
-                self.get_var_mut(&iden.iden)?.melo = true;
+                self.get_var_mut(&iden)?.melo = true;
             }
             StmtKind::Rlyeh => {
                 // Maybe print a creepy error message or something
@@ -274,14 +281,14 @@ impl ExecEnv {
             }
         }
 
-        Ok(HaltStatus::Value(Value::Nul))
+        Ok(HaltStatus::Finished)
     }
 
     /// Get the value of a variable. Throw an error if the variable is
     /// inaccessible or banned.
-    fn get_var(&self, name: &str) -> Result<Value, Error> {
+    fn get_var(&self, name: &Iden) -> Result<Value, Error> {
         // One-letter names are reserved as base55 numbers.
-        let mut chars = name.chars();
+        let mut chars = name.iden.chars();
         if let (Some(first), None) = (chars.next(), chars.next()) {
             return Ok(Value::Int(base_55::char2num(first)));
         }
@@ -292,51 +299,49 @@ impl ExecEnv {
             .stack
             .iter()
             .rev()
-            .find_map(|scope| scope.variables.get(name))
+            .find_map(|scope| scope.variables.get(&name.iden))
         {
             Some(var) => {
                 if !var.melo {
                     Ok(var.value.clone())
                 } else {
                     Err(Error {
-                        kind: ErrorKind::MeloVariable(name.to_owned()),
-                        // TODO: figure out some way to avoid this
-                        // 0..0 dumbness
-                        span: 0..0,
+                        kind: ErrorKind::MeloVariable(name.iden.to_owned()),
+                        span: name.span.clone(),
                     })
                 }
             }
             None => Err(Error {
-                kind: ErrorKind::UnknownVariable(name.to_owned()),
-                span: 0..0,
+                kind: ErrorKind::UnknownVariable(name.iden.to_owned()),
+                span: name.span.clone(),
             }),
         }
     }
 
     /// Get a mutable reference to a variable. Throw an error if the
     /// variable is inaccessible or banned.
-    fn get_var_mut(&mut self, name: &str) -> Result<&mut Variable, Error> {
+    fn get_var_mut(&mut self, name: &Iden) -> Result<&mut Variable, Error> {
         // This function has a lot of duplicated code with `get_var`,
         // which I feel like is a bad sign...
         match self
             .stack
             .iter_mut()
             .rev()
-            .find_map(|scope| scope.variables.get_mut(name))
+            .find_map(|scope| scope.variables.get_mut(&name.iden))
         {
             Some(var) => {
                 if !var.melo {
                     Ok(var)
                 } else {
                     Err(Error {
-                        kind: ErrorKind::MeloVariable(name.to_owned()),
-                        span: 0..0,
+                        kind: ErrorKind::MeloVariable(name.iden.to_owned()),
+                        span: name.span.clone(),
                     })
                 }
             }
             None => Err(Error {
-                kind: ErrorKind::UnknownVariable(name.to_owned()),
-                span: 0..0,
+                kind: ErrorKind::UnknownVariable(name.iden.to_owned()),
+                span: name.span.clone(),
             }),
         }
     }
@@ -367,15 +372,15 @@ mod tests {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(2)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     rhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(2)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     kind: crate::ast::BinOpKind::Add,
                 },
-                span: 0..0
+                span: 1..1
             })
             .unwrap(),
             Value::Int(4)
@@ -392,15 +397,15 @@ mod tests {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(2)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     rhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Bool(true)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     kind: crate::ast::BinOpKind::Add,
                 },
-                span: 0..0
+                span: 1..1
             }),
             Err(Error {
                 kind: ErrorKind::TypeError(_),
@@ -419,15 +424,15 @@ mod tests {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(i32::MAX)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     rhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(1)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     kind: crate::ast::BinOpKind::Add,
                 },
-                span: 0..0
+                span: 1..1
             }),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
@@ -441,15 +446,15 @@ mod tests {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(1)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     rhs: Box::new(Expr {
                         kind: ExprKind::Literal(Value::Int(0)),
-                        span: 0..0,
+                        span: 1..1,
                     }),
                     kind: crate::ast::BinOpKind::Divide,
                 },
-                span: 0..0
+                span: 1..1
             }),
             Err(Error {
                 kind: ErrorKind::ArithmeticError,
@@ -467,7 +472,7 @@ mod tests {
         // We can assume there won't be any syntax errors in the
         // interpreter tests.
         let ast = parser.init().unwrap();
-        env.eval_stmts(&ast)
+        env.eval_stmts(&ast).map(|()| Value::Nul)
     }
 
     #[test]
