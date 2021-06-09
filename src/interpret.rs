@@ -61,15 +61,16 @@ impl ExecEnv {
     /// other information.
     pub fn new() -> Self {
         Self {
-            stack: Default::default(),
+            // We always need at least one stackframe.
+            stack: vec![Default::default()],
         }
     }
 
-    /// Execute a set of Statements in their own stack frame. Return
-    /// an error if one or more of the Stmts failed to evaluate, or if
-    /// a `break` or `hopback` statement occurred at the top level.
+    /// Execute a set of Statements in the root stack frame. Return an
+    /// error if one or more of the Stmts failed to evaluate, or if a
+    /// `break` or `hopback` statement occurred at the top level.
     pub fn eval_stmts(&mut self, stmts: &[Stmt]) -> Result<(), Error> {
-        match self.eval_stmts_hs(stmts)? {
+        match self.eval_stmts_hs(stmts, false)? {
             HaltStatus::Finished => Ok(()),
             HaltStatus::Break(span) | HaltStatus::Hopback(span) => Err(Error {
                 // It's an error to issue a `break` outside of a
@@ -81,14 +82,18 @@ impl ExecEnv {
     }
 
     /// The same as `eval_stmts`, but report "break" and "hopback"
-    /// exit codes as normal conditions in a HaltStatus enum.
+    /// exit codes as normal conditions in a HaltStatus enum, and
+    /// create a new stack frame if `stackframe` is true.
     ///
     /// `interpret`-internal code should typically prefer this
     /// function over `eval_stmts`.
-    fn eval_stmts_hs(&mut self, stmts: &[Stmt]) -> Result<HaltStatus, Error> {
+    fn eval_stmts_hs(&mut self, stmts: &[Stmt], stackframe: bool) -> Result<HaltStatus, Error> {
         let init_depth = self.stack.len();
 
-        self.stack.push(Default::default());
+        if stackframe {
+            self.stack.push(Default::default());
+        }
+
         let mut final_result = Ok(HaltStatus::Finished);
         for stmt in stmts {
             final_result = self.eval_stmt(stmt);
@@ -96,7 +101,10 @@ impl ExecEnv {
                 break;
             }
         }
-        self.stack.pop();
+
+        if stackframe {
+            self.stack.pop();
+        }
 
         // Invariant: stack size must have net 0 change.
         debug_assert_eq!(self.stack.len(), init_depth);
@@ -211,7 +219,7 @@ impl ExecEnv {
             // }
             StmtKind::If { cond, body } => {
                 if self.eval_expr(cond)?.to_bool() {
-                    return self.eval_stmts_hs(&body.block);
+                    return self.eval_stmts_hs(&body.block, true);
                 }
             }
             StmtKind::Call { iden, args } => {
@@ -254,7 +262,7 @@ impl ExecEnv {
                 }
             }
             StmtKind::Loop { body } => loop {
-                let res = self.eval_stmts_hs(&body.block)?;
+                let res = self.eval_stmts_hs(&body.block, true)?;
                 match res {
                     HaltStatus::Finished => {}
                     HaltStatus::Break(_) => break,
