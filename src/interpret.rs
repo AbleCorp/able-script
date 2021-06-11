@@ -208,6 +208,7 @@ impl ExecEnv {
                 args: _,
                 body: _,
             } => todo!(),
+            StmtKind::BfFunctio { .. } => todo!(),
             // This is missing from StmtKind after the interpreter
             // rewrite; presumably, parsing is not yet implemented for
             // it. ~~Alex

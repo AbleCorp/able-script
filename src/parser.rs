@@ -62,6 +62,7 @@ impl<'source> Parser<'source> {
                 self.functio_flow()?,
                 start..self.lexer.span().end,
             )),
+            Token::Bff => Ok(Stmt::new(self.bff_flow()?, start..self.lexer.span().end)),
             Token::Var => Ok(Stmt::new(self.var_flow()?, start..self.lexer.span().end)),
             Token::Melo => Ok(Stmt::new(self.melo_flow()?, start..self.lexer.span().end)),
             Token::Loop => Ok(Stmt::new(self.loop_flow()?, start..self.lexer.span().end)),
@@ -379,6 +380,55 @@ impl<'source> Parser<'source> {
         let body = self.get_block()?;
 
         Ok(StmtKind::Functio { iden, args, body })
+    }
+
+    /// Parse BF function declaration
+    ///
+    /// `bff $iden $((tapelen))? { ... }`
+    fn bff_flow(&mut self) -> Result<StmtKind, Error> {
+        let iden = self.get_iden()?;
+
+        let tape_len = match self
+            .lexer
+            .next()
+            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+        {
+            Token::LeftParen => {
+                let len = Some(self.expr_flow(Token::RightParen)?);
+                self.require(Token::LeftCurly)?;
+                len
+            }
+            Token::LeftCurly => None,
+            _ => todo!(),
+        };
+
+        let mut code = String::new();
+        loop {
+            code.push_str(
+                match self
+                    .lexer
+                    .next()
+                    .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                {
+                    Token::Plus
+                    | Token::Minus
+                    | Token::Dot
+                    | Token::Comma
+                    | Token::LeftBracket
+                    | Token::RightBracket
+                    | Token::LessThan
+                    | Token::GreaterThan => self.lexer.slice(),
+                    Token::RightCurly => break,
+                    _ => "",
+                },
+            );
+        }
+
+        Ok(StmtKind::BfFunctio {
+            iden,
+            tape_len,
+            code,
+        })
     }
 
     /// Parse functio call flow

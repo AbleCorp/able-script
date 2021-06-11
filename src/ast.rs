@@ -63,6 +63,11 @@ pub enum StmtKind {
         args: Vec<Iden>,
         body: Block,
     },
+    BfFunctio {
+        iden: Iden,
+        tape_len: Option<Expr>,
+        code: String,
+    },
     Call {
         iden: Iden,
         args: Vec<Expr>,
