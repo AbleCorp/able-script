@@ -208,10 +208,7 @@ impl<'source> Parser<'source> {
                 start..self.lexer.span().end,
             )),
             Token::LeftParen => self.expr_flow(Token::RightParen),
-            t => Err(Error::new(
-                ErrorKind::UnexpectedToken(t),
-                start..self.lexer.span().end,
-            )),
+            t => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
         }
     }
 
