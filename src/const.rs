@@ -13,6 +13,7 @@ pub const STD_RNG: i32 = 4; //The standard random number is 4 (source: https://x
 pub const INF: i32 = i32::max_value();
 pub const INTERESSANT: i32 = 114514; // HTGAzureX1212.#5959 interessant number
 pub const FUNNY: i32 = 69; // HTGAzureX1212.#5959 funny number
+pub const NEVERGONNAGIVEYOUUP: &str = "1452251871514141792252515212116";
 
 pub const OCTOTHORPE: char = '#';
 pub const ANSWER: i32 = 42;
