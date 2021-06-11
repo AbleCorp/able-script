@@ -66,7 +66,7 @@ pub enum StmtKind {
     BfFunctio {
         iden: Iden,
         tape_len: Option<Expr>,
-        code: String,
+        code: Vec<u8>,
     },
     Call {
         iden: Iden,

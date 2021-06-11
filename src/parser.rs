@@ -402,26 +402,24 @@ impl<'source> Parser<'source> {
             _ => todo!(),
         };
 
-        let mut code = String::new();
+        let mut code: Vec<u8> = vec![];
         loop {
-            code.push_str(
-                match self
-                    .lexer
-                    .next()
-                    .ok_or(Error::unexpected_eof(self.lexer.span().start))?
-                {
-                    Token::Plus
-                    | Token::Minus
-                    | Token::Dot
-                    | Token::Comma
-                    | Token::LeftBracket
-                    | Token::RightBracket
-                    | Token::LessThan
-                    | Token::GreaterThan => self.lexer.slice(),
-                    Token::RightCurly => break,
-                    _ => "",
-                },
-            );
+            match self
+                .lexer
+                .next()
+                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            {
+                Token::Plus
+                | Token::Minus
+                | Token::Dot
+                | Token::Comma
+                | Token::LeftBracket
+                | Token::RightBracket
+                | Token::LessThan
+                | Token::GreaterThan => code.push(self.lexer.slice().as_bytes()[0]),
+                Token::RightCurly => break,
+                _ => (),
+            }
         }
 
         Ok(StmtKind::BfFunctio {
