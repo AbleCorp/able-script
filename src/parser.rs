@@ -396,7 +396,12 @@ impl<'source> Parser<'source> {
                 len
             }
             Token::LeftCurly => None,
-            _ => todo!(),
+            token => {
+                return Err(Error::new(
+                    ErrorKind::UnexpectedToken(token),
+                    self.lexer.span(),
+                ))
+            }
         };
 
         let mut code: Vec<u8> = vec![];
