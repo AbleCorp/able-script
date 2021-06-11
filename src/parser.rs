@@ -381,7 +381,7 @@ impl<'source> Parser<'source> {
 
     /// Parse BF function declaration
     ///
-    /// `bff $iden $((tapelen))? { ... }`
+    /// `bff $iden ([tapelen]) { ... }`
     fn bff_flow(&mut self) -> Result<StmtKind, Error> {
         let iden = self.get_iden()?;
 
