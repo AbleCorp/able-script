@@ -74,7 +74,7 @@ impl<'source> Parser<'source> {
                 start..self.lexer.span().end,
             )),
             Token::Rlyeh => Ok(Stmt::new(
-                self.semi_terminated(StmtKind::HopBack)?,
+                self.semi_terminated(StmtKind::Rlyeh)?,
                 start..self.lexer.span().end,
             )),
 
@@ -284,12 +284,16 @@ impl<'source> Parser<'source> {
                 .next()
                 .ok_or(Error::unexpected_eof(self.lexer.span().start))?
             {
+                // Print to stdout
                 Token::Print => {
-                    break StmtKind::Print(buf.take().ok_or(Error::new(
+                    let stmt = StmtKind::Print(buf.take().ok_or(Error::new(
                         ErrorKind::UnexpectedToken(Token::Print),
                         self.lexer.span(),
-                    ))?)
+                    ))?);
+                    break self.semi_terminated(stmt)?;
                 }
+
+                // Functio call
                 Token::LeftParen => {
                     if let Some(Expr {
                         kind: ExprKind::Variable(iden),
@@ -299,10 +303,23 @@ impl<'source> Parser<'source> {
                         break self.functio_call_flow(Iden::new(iden, span))?;
                     }
                 }
+
+                // Variable Assignment
+                Token::Equal => {
+                    if let Some(Expr {
+                        kind: ExprKind::Variable(iden),
+                        span,
+                    }) = buf
+                    {
+                        break StmtKind::Assign {
+                            iden: Iden::new(iden, span),
+                            value: self.expr_flow(Token::Semicolon)?,
+                        };
+                    }
+                }
                 t => buf = Some(self.parse_expr(t, &mut buf)?),
             }
         };
-        self.require(Token::Semicolon)?;
 
         Ok(r)
     }
@@ -397,6 +414,7 @@ impl<'source> Parser<'source> {
             }
         }
 
+        self.require(Token::Semicolon)?;
         Ok(StmtKind::Call { iden, args })
     }
 

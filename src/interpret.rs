@@ -203,6 +203,7 @@ impl ExecEnv {
 
                 self.decl_var(&iden.iden, init);
             }
+            StmtKind::Assign { .. } => todo!(),
             StmtKind::Functio {
                 iden: _,
                 args: _,

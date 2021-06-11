@@ -53,6 +53,10 @@ pub enum StmtKind {
         iden: Iden,
         init: Option<Expr>,
     },
+    Assign {
+        iden: Iden,
+        value: Expr,
+    },
 
     Functio {
         iden: Iden,
