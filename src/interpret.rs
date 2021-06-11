@@ -203,7 +203,6 @@ impl ExecEnv {
 
                 self.decl_var(&iden.iden, init);
             }
-            StmtKind::Assign { .. } => todo!(),
             StmtKind::Functio {
                 iden: _,
                 args: _,
@@ -270,10 +269,9 @@ impl ExecEnv {
                     HaltStatus::Hopback(_) => continue,
                 }
             },
-            // This is missing as well. ~~Alex
-            // StmtKind::VarAssignment { iden, value } => {
-            //     self.get_var_mut(&iden.0)?.value = self.eval_expr(value)?;
-            // }
+            StmtKind::Assign { iden, value } => {
+                self.get_var_mut(&iden)?.value = self.eval_expr(value)?;
+            }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
             }
