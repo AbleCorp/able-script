@@ -208,16 +208,26 @@ impl ExecEnv {
                 args: _,
                 body: _,
             } => todo!(),
-            StmtKind::BfFunctio { .. } => todo!(),
-            // This is missing from StmtKind after the interpreter
-            // rewrite; presumably, parsing is not yet implemented for
-            // it. ~~Alex
-            // StmtKind::BfFDeclaration { iden, body } => {
-            //     self.decl_var(
-            //         &iden.0,
-            //         Value::Functio(Functio::BfFunctio(body.as_bytes().into())),
-            //     );
-            // }
+            StmtKind::BfFunctio {
+                iden,
+                tape_len,
+                code,
+            } => {
+                self.decl_var(
+                    &iden.iden,
+                    Value::Functio(Functio::BfFunctio {
+                        instructions: code.to_owned(),
+                        tape_len: tape_len
+                            .as_ref()
+                            .map(|tape_len| {
+                                self.eval_expr(tape_len)
+                                    .and_then(|v| v.to_i32(&stmt.span))
+                                    .map(|len| len as usize)
+                            })
+                            .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
+                    }),
+                );
+            }
             StmtKind::If { cond, body } => {
                 if self.eval_expr(cond)?.to_bool() {
                     return self.eval_stmts_hs(&body.block, true);
@@ -228,7 +238,10 @@ impl ExecEnv {
                 match func {
                     Value::Functio(func) => {
                         match func {
-                            Functio::BfFunctio(body) => {
+                            Functio::BfFunctio {
+                                instructions,
+                                tape_len,
+                            } => {
                                 let mut input: Vec<u8> = vec![];
                                 for arg in args {
                                     self.eval_expr(arg)?.bf_write(&mut input);
@@ -236,11 +249,16 @@ impl ExecEnv {
                                 println!("input = {:?}", input);
                                 let mut output = vec![];
 
-                                crate::brian::interpret_with_io(&body, &input as &[_], &mut output)
-                                    .map_err(|e| Error {
-                                        kind: ErrorKind::BfInterpretError(e),
-                                        span: stmt.span.clone(),
-                                    })?;
+                                crate::brian::Interpreter::from_ascii_with_tape_limit(
+                                    &instructions,
+                                    &input as &[_],
+                                    tape_len,
+                                )
+                                .interpret_with_output(&mut output)
+                                .map_err(|e| Error {
+                                    kind: ErrorKind::BfInterpretError(e),
+                                    span: stmt.span.clone(),
+                                })?;
 
                                 // I guess Brainfuck functions write
                                 // output to stdout? It's not quite

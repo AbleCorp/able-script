@@ -36,7 +36,10 @@ impl From<Abool> for bool {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Functio {
-    BfFunctio(Vec<u8>),
+    BfFunctio {
+        instructions: Vec<u8>,
+        tape_len: usize,
+    },
     AbleFunctio(Vec<Stmt>),
 }
 
@@ -94,10 +97,17 @@ impl Value {
                 }])
             }),
             Value::Functio(f) => stream.write_all(&[5]).and_then(|_| match f {
-                Functio::BfFunctio(f) => stream
-                    .write_all(&[0])
-                    .and_then(|_| stream.write_all(&(f.len() as u32).to_le_bytes()))
-                    .and_then(|_| stream.write_all(&f)),
+                Functio::BfFunctio {
+                    instructions,
+                    tape_len: _,
+                } => {
+                    // NOTE(Alex): Tape length should maybe be taken
+                    // into account here.
+                    stream
+                        .write_all(&[0])
+                        .and_then(|_| stream.write_all(&(instructions.len() as u32).to_le_bytes()))
+                        .and_then(|_| stream.write_all(&instructions))
+                }
                 Functio::AbleFunctio(_) => {
                     todo!()
                 }
@@ -148,11 +158,12 @@ impl Display for Value {
             Value::Bool(v) => write!(f, "{}", v),
             Value::Abool(v) => write!(f, "{}", v),
             Value::Functio(v) => match v {
-                Functio::BfFunctio(source) => {
+                Functio::BfFunctio { instructions, tape_len } => {
                     write!(
                         f,
-                        "{}",
-                        String::from_utf8(source.to_owned())
+                        "({}) {}",
+                        tape_len,
+                        String::from_utf8(instructions.to_owned())
                             .expect("Brainfuck functio source should be UTF-8")
                     )
                 }
