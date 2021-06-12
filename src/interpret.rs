@@ -19,7 +19,7 @@ use rand::random;
 
 use crate::{
     ast::{Expr, Iden, Stmt, StmtKind},
-    base_55,
+    base_55, consts,
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
 };
@@ -134,10 +134,7 @@ impl ExecEnv {
                             Divide => lhs.checked_div(rhs),
                             _ => unreachable!(),
                         }
-                        .ok_or(Error {
-                            kind: ErrorKind::ArithmeticError,
-                            span: expr.span.clone(),
-                        })?;
+                        .unwrap_or(consts::ANSWER);
                         Int(res)
                     }
 
