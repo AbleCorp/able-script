@@ -78,6 +78,10 @@ impl<'source> Parser<'source> {
                 self.semi_terminated(StmtKind::Rlyeh)?,
                 start..self.lexer.span().end,
             )),
+            Token::Rickroll => Ok(Stmt::new(
+                self.semi_terminated(StmtKind::Rickroll)?,
+                start..self.lexer.span().end
+            )),
 
             Token::Identifier(_)
             | Token::Char
