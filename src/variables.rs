@@ -1,4 +1,4 @@
-use std::{fmt::Display, io::Write, ops::Range};
+use std::{cell::RefCell, fmt::Display, io::Write, ops::Range, rc::Rc};
 
 use rand::Rng;
 
@@ -191,5 +191,8 @@ impl Display for Value {
 #[derive(Debug)]
 pub struct Variable {
     pub melo: bool,
-    pub value: Value,
+
+    // Multiple Variables can reference the same underlying Value when
+    // pass-by-reference is used, therefore we use Rc here.
+    pub value: Rc<RefCell<Value>>,
 }

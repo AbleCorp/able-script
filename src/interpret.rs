@@ -6,12 +6,14 @@
 //! AbleScript snippet. You can then call [ExecEnv::eval_stmts] to
 //! evaluate or execute any number of expressions or statements.
 
-#[deny(missing_docs)]
+#![deny(missing_docs)]
 use std::{
+    cell::RefCell,
     collections::HashMap,
     io::{stdout, Write},
     ops::Range,
     process::exit,
+    rc::Rc,
     usize,
 };
 
@@ -238,13 +240,8 @@ impl ExecEnv {
             StmtKind::Call { iden, args } => {
                 let func = self.get_var(&iden)?;
 
-                let args = args
-                    .iter()
-                    .map(|arg| self.eval_expr(arg))
-                    .collect::<Result<_, _>>()?;
-
                 if let Value::Functio(func) = func {
-                    self.fn_call(func, args, &stmt.span)?;
+                    self.fn_call(func, &args, &stmt.span)?;
                 } else {
                     return Err(Error {
                         kind: ErrorKind::TypeError(iden.iden.to_owned()),
@@ -261,7 +258,8 @@ impl ExecEnv {
                 }
             },
             StmtKind::Assign { iden, value } => {
-                self.get_var_mut(&iden)?.value = self.eval_expr(value)?;
+                let value = self.eval_expr(value)?;
+                self.get_var_mut(&iden)?.value.replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
@@ -291,9 +289,14 @@ impl ExecEnv {
     fn fn_call(
         &mut self,
         func: Functio,
-        args: Vec<Value>,
+        args: &[Iden],
         span: &Range<usize>,
     ) -> Result<(), Error> {
+        let args = args
+            .iter()
+            .map(|arg| self.get_var_rc(arg))
+            .collect::<Result<Vec<Rc<RefCell<Value>>>, Error>>()?;
+
         match func {
             Functio::BfFunctio {
                 instructions,
@@ -301,7 +304,7 @@ impl ExecEnv {
             } => {
                 let mut input: Vec<u8> = vec![];
                 for arg in args {
-                    arg.bf_write(&mut input);
+                    arg.borrow().bf_write(&mut input);
                 }
                 println!("input = {:?}", input);
                 let mut output = vec![];
@@ -332,7 +335,7 @@ impl ExecEnv {
                 self.stack.push(Default::default());
 
                 for (param, arg) in params.iter().zip(args.iter()) {
-                    self.decl_var(param, arg.to_owned());
+                    self.decl_var_shared(param, arg.to_owned());
                 }
 
                 let res = self.eval_stmts_hs(&body, false);
@@ -363,7 +366,7 @@ impl ExecEnv {
         {
             Some(var) => {
                 if !var.melo {
-                    Ok(var.value.clone())
+                    Ok(var.value.borrow().clone())
                 } else {
                     Err(Error {
                         kind: ErrorKind::MeloVariable(name.iden.to_owned()),
@@ -406,8 +409,19 @@ impl ExecEnv {
         }
     }
 
-    /// Declares a new variable, with the given initial value.
+    /// Get an Rc'd pointer to the value of a variable. Throw an error
+    /// if the variable is inaccessible or banned.
+    fn get_var_rc(&mut self, name: &Iden) -> Result<Rc<RefCell<Value>>, Error> {
+        Ok(self.get_var_mut(name)?.value.clone())
+    }
+
+    /// Declare a new variable, with the given initial value.
     fn decl_var(&mut self, name: &str, value: Value) {
+        self.decl_var_shared(name, Rc::new(RefCell::new(value)));
+    }
+
+    /// Declare a new variable, with the given shared initial value.
+    fn decl_var_shared(&mut self, name: &str, value: Rc<RefCell<Value>>) {
         self.stack
             .iter_mut()
             .last()

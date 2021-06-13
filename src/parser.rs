@@ -469,7 +469,10 @@ impl<'source> Parser<'source> {
         }
 
         self.require(Token::Semicolon)?;
-        Ok(StmtKind::Call { iden, args })
+        // Ok(StmtKind::Call { iden, args })
+
+        // `args` needs to be a vector of Idens now. ~~Alex
+        todo!()
     }
 
     /// Parse variable declaration
