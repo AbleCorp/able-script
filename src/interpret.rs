@@ -306,6 +306,7 @@ impl ExecEnv {
                 exit(random());
             }
             StmtKind::Rickroll => {
+                // possibly move the entire rickroll string into a constant? ~~HTGAzureX1212.
                 stdout().write_all(b"We're no strangers to love
 You know the rules and so do I
 A full commitments what I'm thinking of
