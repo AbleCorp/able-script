@@ -18,8 +18,6 @@ if (foo != "world") {
     foo print;
 }
 
-owo AbleScript doesn't have an `else` statement (yet), so we get to
-owo check the reverse condition.
 if (foo == "world") {
     "OK" print;
 }
