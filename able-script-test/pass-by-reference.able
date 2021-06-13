@@ -1,0 +1,17 @@
+owo Pass-by-reference test
+
+owo Swap two variables.
+functio swap(left, right) {
+    var tmp = left;
+    left = right;
+    right = tmp;
+}
+
+var foo = "hello";
+var bar = "world";
+
+swap(foo, bar);
+
+owo Should print "hello", then "world"
+bar print;
+foo print;
