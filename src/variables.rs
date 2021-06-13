@@ -40,7 +40,10 @@ pub enum Functio {
         instructions: Vec<u8>,
         tape_len: usize,
     },
-    AbleFunctio(Vec<Stmt>),
+    AbleFunctio {
+        params: Vec<String>,
+        body: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -76,7 +79,7 @@ impl Value {
     /// break a significant amount of AbleScript code. If more types
     /// are added in the future, they should be assigned the remaining
     /// discriminant bytes from 06..FF.
-    pub fn bf_write(&mut self, stream: &mut impl Write) {
+    pub fn bf_write(&self, stream: &mut impl Write) {
         match self {
             Value::Nul => stream.write_all(&[0]),
             Value::Str(s) => stream
@@ -108,7 +111,7 @@ impl Value {
                         .and_then(|_| stream.write_all(&(instructions.len() as u32).to_le_bytes()))
                         .and_then(|_| stream.write_all(&instructions))
                 }
-                Functio::AbleFunctio(_) => {
+                Functio::AbleFunctio { params: _, body: _ } => {
                     todo!()
                 }
             }),
@@ -158,7 +161,10 @@ impl Display for Value {
             Value::Bool(v) => write!(f, "{}", v),
             Value::Abool(v) => write!(f, "{}", v),
             Value::Functio(v) => match v {
-                Functio::BfFunctio { instructions, tape_len } => {
+                Functio::BfFunctio {
+                    instructions,
+                    tape_len,
+                } => {
                     write!(
                         f,
                         "({}) {}",
@@ -167,10 +173,15 @@ impl Display for Value {
                             .expect("Brainfuck functio source should be UTF-8")
                     )
                 }
-                Functio::AbleFunctio(source) => {
-                    // TODO: what's the proper way to display an
-                    // AbleScript functio?
-                    write!(f, "{:?}", source)
+                Functio::AbleFunctio { params, body } => {
+                    write!(
+                        f,
+                        "({}) -> {:?}",
+                        params.join(", "),
+                        // Maybe we should have a pretty-printer for
+                        // statement blocks at some point?
+                        body,
+                    )
                 }
             },
         }

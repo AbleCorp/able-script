@@ -60,7 +60,7 @@ pub enum StmtKind {
 
     Functio {
         iden: Iden,
-        args: Vec<Iden>,
+        params: Vec<Iden>,
         body: Block,
     },
     BfFunctio {

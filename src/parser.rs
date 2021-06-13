@@ -347,7 +347,7 @@ impl<'source> Parser<'source> {
 
         self.require(Token::LeftParen)?;
 
-        let mut args = vec![];
+        let mut params = vec![];
         loop {
             match self
                 .lexer
@@ -356,7 +356,7 @@ impl<'source> Parser<'source> {
             {
                 Token::RightParen => break,
                 Token::Identifier(i) => {
-                    args.push(Iden::new(i, self.lexer.span()));
+                    params.push(Iden::new(i, self.lexer.span()));
 
                     // Require comma (next) or right paren (end) after identifier
                     match self
@@ -380,7 +380,7 @@ impl<'source> Parser<'source> {
 
         let body = self.get_block()?;
 
-        Ok(StmtKind::Functio { iden, args, body })
+        Ok(StmtKind::Functio { iden, params, body })
     }
 
     /// Parse BF function declaration

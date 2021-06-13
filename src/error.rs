@@ -20,6 +20,7 @@ pub enum ErrorKind {
     TopLevelBreak,
     ArithmeticError,
     BfInterpretError(InterpretError),
+    MismatchedArgumentError,
     MissingLhs,
 }
 

@@ -76,7 +76,7 @@ impl ExecEnv {
                 // It's an error to issue a `break` outside of a
                 // `loop` statement.
                 kind: ErrorKind::TopLevelBreak,
-                span: span,
+                span,
             }),
         }
     }
@@ -203,11 +203,13 @@ impl ExecEnv {
 
                 self.decl_var(&iden.iden, init);
             }
-            StmtKind::Functio {
-                iden: _,
-                args: _,
-                body: _,
-            } => todo!(),
+            StmtKind::Functio { iden, params, body } => self.decl_var(
+                &iden.iden,
+                Value::Functio(Functio::AbleFunctio {
+                    params: params.iter().map(|iden| iden.iden.to_string()).collect(),
+                    body: body.block.to_owned(),
+                }),
+            ),
             StmtKind::BfFunctio {
                 iden,
                 tape_len,
@@ -235,49 +237,19 @@ impl ExecEnv {
             }
             StmtKind::Call { iden, args } => {
                 let func = self.get_var(&iden)?;
-                match func {
-                    Value::Functio(func) => {
-                        match func {
-                            Functio::BfFunctio {
-                                instructions,
-                                tape_len,
-                            } => {
-                                let mut input: Vec<u8> = vec![];
-                                for arg in args {
-                                    self.eval_expr(arg)?.bf_write(&mut input);
-                                }
-                                println!("input = {:?}", input);
-                                let mut output = vec![];
 
-                                crate::brian::Interpreter::from_ascii_with_tape_limit(
-                                    &instructions,
-                                    &input as &[_],
-                                    tape_len,
-                                )
-                                .interpret_with_output(&mut output)
-                                .map_err(|e| Error {
-                                    kind: ErrorKind::BfInterpretError(e),
-                                    span: stmt.span.clone(),
-                                })?;
+                let args = args
+                    .iter()
+                    .map(|arg| self.eval_expr(arg))
+                    .collect::<Result<_, _>>()?;
 
-                                // I guess Brainfuck functions write
-                                // output to stdout? It's not quite
-                                // clear to me what else to do. ~~Alex
-                                stdout()
-                                    .write_all(&output)
-                                    .expect("Failed to write to stdout");
-                            }
-                            Functio::AbleFunctio(_) => {
-                                todo!()
-                            }
-                        }
-                    }
-                    _ => {
-                        return Err(Error {
-                            kind: ErrorKind::TypeError(iden.iden.to_owned()),
-                            span: stmt.span.clone(),
-                        })
-                    }
+                if let Value::Functio(func) = func {
+                    self.fn_call(func, args, &stmt.span)?;
+                } else {
+                    return Err(Error {
+                        kind: ErrorKind::TypeError(iden.iden.to_owned()),
+                        span: stmt.span.clone(),
+                    });
                 }
             }
             StmtKind::Loop { body } => loop {
@@ -311,6 +283,65 @@ impl ExecEnv {
         }
 
         Ok(HaltStatus::Finished)
+    }
+
+    /// Call a function with the given arguments (i.e., actual
+    /// parameters). If the function invocation fails for some reason,
+    /// report the error at `span`.
+    fn fn_call(
+        &mut self,
+        func: Functio,
+        args: Vec<Value>,
+        span: &Range<usize>,
+    ) -> Result<(), Error> {
+        match func {
+            Functio::BfFunctio {
+                instructions,
+                tape_len,
+            } => {
+                let mut input: Vec<u8> = vec![];
+                for arg in args {
+                    arg.bf_write(&mut input);
+                }
+                println!("input = {:?}", input);
+                let mut output = vec![];
+
+                crate::brian::Interpreter::from_ascii_with_tape_limit(
+                    &instructions,
+                    &input as &[_],
+                    tape_len,
+                )
+                .interpret_with_output(&mut output)
+                .map_err(|e| Error {
+                    kind: ErrorKind::BfInterpretError(e),
+                    span: span.to_owned(),
+                })?;
+
+                stdout()
+                    .write_all(&output)
+                    .expect("Failed to write to stdout");
+            }
+            Functio::AbleFunctio { params, body } => {
+                if params.len() != args.len() {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchedArgumentError,
+                        span: span.to_owned(),
+                    });
+                }
+
+                self.stack.push(Default::default());
+
+                for (param, arg) in params.iter().zip(args.iter()) {
+                    self.decl_var(param, arg.to_owned());
+                }
+
+                let res = self.eval_stmts_hs(&body, false);
+
+                self.stack.pop();
+                res?;
+            }
+        }
+        Ok(())
     }
 
     /// Get the value of a variable. Throw an error if the variable is
