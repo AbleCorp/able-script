@@ -111,6 +111,9 @@ pub enum Token {
     #[token("rlyeh")]
     Rlyeh,
 
+    #[token("rickroll")]
+    Rickroll,
+
     // Literals
     /// True, False
     #[regex("true|false", get_bool)]
