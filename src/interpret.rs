@@ -306,7 +306,7 @@ impl ExecEnv {
                 exit(random());
             }
             StmtKind::Rickroll => {
-                stdout().write_all(include_str!("../resources/rickroll").as_bytes()).expect("Failed to write to stdout")
+                stdout().write_all(include_str!("rickroll").as_bytes()).expect("Failed to write to stdout")
             }
         }
 
