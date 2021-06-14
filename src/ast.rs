@@ -75,7 +75,7 @@ pub enum StmtKind {
     Print(Expr),
     Melo(Iden),
     Rlyeh,
-    Rickroll
+    Rickroll,
 }
 
 impl Stmt {
