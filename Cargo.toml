@@ -1,13 +1,27 @@
 [package]
-name = "able-script"
+name = "common"
 version = "0.1.0"
-authors = ["able <abl3theabove@gmail.com>"]
+authors = ["Benjamin Saunders <ben.e.saunders@gmail.com>"]
 edition = "2018"
+publish = false
+license = "Apache-2.0 OR Zlib"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33"
-logos = "0.12"
-rand = "0.8"
-rustyline = "8.0.0"
+serde = { version = "1.0.104", features = ["derive"] }
+na = { package = "nalgebra", version = "0.19", features = ["serde-serialize"] }
+bincode = "1.2.1"
+anyhow = "1.0.26"
+quinn = "0.6.1"
+lazy_static = "1.4.0"
+fxhash = "0.2.1"
+tracing = "0.1.10"
+hecs = "0.5.2"
+tracing-subscriber = { version = "0.2.5", default-features = false, features = ["env-filter", "smallvec", "fmt", "ansi", "chrono", "parking_lot"] }
+rand = "0.7.3"
+rand_pcg = "0.2.1"
+rand_distr = "0.3.0"
+
+[dev-dependencies]
+approx = "0.3.2"
