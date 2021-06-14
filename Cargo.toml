@@ -1,27 +1,29 @@
 [package]
-name = "common"
+name = "able-script"
 version = "0.1.0"
-authors = ["Benjamin Saunders <ben.e.saunders@gmail.com>"]
+authors = ["able <abl3theabove@gmail.com>"]
 edition = "2018"
-publish = false
-license = "Apache-2.0 OR Zlib"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.104", features = ["derive"] }
-na = { package = "nalgebra", version = "0.19", features = ["serde-serialize"] }
-bincode = "1.2.1"
-anyhow = "1.0.26"
-quinn = "0.6.1"
-lazy_static = "1.4.0"
-fxhash = "0.2.1"
+clap = "2.33"
+logos = "0.12"
+rustyline = "8.0.0"
 tracing = "0.1.10"
+tokio = { version = "0.2", features = ["rt-threaded", "time", "macros", "stream", "sync"] }
+quinn = "0.6.1"
+serde = { version = "1.0.104", features = ["derive", "rc"] }
+toml = "0.5.5"
+anyhow = "1.0.26"
+rcgen = { version = "0.8.2", default-features = false }
+hostname = "0.3.0"
+futures = "0.3.1"
 hecs = "0.5.2"
+rand = { version = "0.7.2", features = [ "small_rng" ] }
+fxhash = "0.2.1"
+na = { package = "nalgebra", version = "0.19" }
+slotmap = "0.4.0"
+bincode = "1.2.1"
+lazy_static = "1.4.0"
 tracing-subscriber = { version = "0.2.5", default-features = false, features = ["env-filter", "smallvec", "fmt", "ansi", "chrono", "parking_lot"] }
-rand = "0.7.3"
-rand_pcg = "0.2.1"
-rand_distr = "0.3.0"
-
-[dev-dependencies]
-approx = "0.3.2"
