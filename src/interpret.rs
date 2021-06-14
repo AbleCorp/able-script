@@ -20,7 +20,7 @@ use std::{
 use rand::random;
 
 use crate::{
-    ast::{Expr, Iden, Stmt, StmtKind},
+    ast::{Expr, ExprKind, Iden, Stmt, StmtKind},
     base_55,
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
@@ -286,16 +286,22 @@ impl ExecEnv {
     /// Call a function with the given arguments (i.e., actual
     /// parameters). If the function invocation fails for some reason,
     /// report the error at `span`.
-    fn fn_call(
-        &mut self,
-        func: Functio,
-        args: &[Iden],
-        span: &Range<usize>,
-    ) -> Result<(), Error> {
+    fn fn_call(&mut self, func: Functio, args: &[Expr], span: &Range<usize>) -> Result<(), Error> {
+        // Arguments that are ExprKind::Variable are pass by
+        // reference; all other expressions are pass by value.
         let args = args
             .iter()
-            .map(|arg| self.get_var_rc(arg))
-            .collect::<Result<Vec<Rc<RefCell<Value>>>, Error>>()?;
+            .map(|arg| {
+                if let ExprKind::Variable(name) = &arg.kind {
+                    self.get_var_rc(&Iden {
+                        iden: name.to_owned(),
+                        span: arg.span.clone(),
+                    })
+                } else {
+                    self.eval_expr(arg).map(|v| Rc::new(RefCell::new(v)))
+                }
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
 
         match func {
             Functio::BfFunctio {

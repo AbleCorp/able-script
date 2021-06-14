@@ -70,11 +70,7 @@ pub enum StmtKind {
     },
     Call {
         iden: Iden,
-
-        // NOTE(Alex): Function arguments are Iden's, not Expr's,
-        // because they're passed by reference rather than by value
-        // and therefore need to be assignable.
-        args: Vec<Iden>,
+        args: Vec<Expr>,
     },
     Print(Expr),
     Melo(Iden),
