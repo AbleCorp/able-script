@@ -275,9 +275,9 @@ impl ExecEnv {
                 // here at some point. ~~Alex
                 exit(random());
             }
-            StmtKind::Rickroll => {
-                stdout().write_all(include_str!("rickroll").as_bytes()).expect("Failed to write to stdout")
-            }
+            StmtKind::Rickroll => stdout()
+                .write_all(include_str!("rickroll").as_bytes())
+                .expect("Failed to write to stdout"),
         }
 
         Ok(HaltStatus::Finished)
