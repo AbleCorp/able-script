@@ -558,48 +558,58 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "doesn't make sense anymore due to separation of statements & expressions"]
     fn variable_decl_and_assignment() {
+        // Functions have no return values, so use some
+        // pass-by-reference hacks to detect the correct
+        // functionality.
+        let mut env = ExecEnv::new();
+
         // Declaring and reading from a variable.
+        eval(&mut env, "var foo = 32; var bar = foo + 1;").unwrap();
         assert_eq!(
-            eval(&mut ExecEnv::new(), "var foo = 32; foo + 1").unwrap(),
+            env.get_var(&Iden {
+                iden: "bar".to_owned(),
+                span: 1..1,
+            })
+            .unwrap(),
             Value::Int(33)
         );
 
-        // It should be possible to overwrite variables as well.
+        // Assigning an existing variable.
+        eval(&mut env, "foo = \"hi\";").unwrap();
         assert_eq!(
-            eval(&mut ExecEnv::new(), "var bar = 10; bar = 20; bar").unwrap(),
-            Value::Int(20)
+            env.get_var(&Iden {
+                iden: "foo".to_owned(),
+                span: 1..1,
+            })
+            .unwrap(),
+            Value::Str("hi".to_owned())
         );
 
         // But variable assignment should be illegal when the variable
         // hasn't been declared in advance.
-        eval(&mut ExecEnv::new(), "baz = 10;").unwrap_err();
+        eval(&mut env, "invalid = bar + 1;").unwrap_err();
     }
 
     #[test]
-    #[ignore = "doesn't make sense anymore due to separation of statements & expressions"]
-    fn variable_persistence() {
-        // Global variables should persist between invocations of
-        // ExecEnv::eval_items().
-        let mut env = ExecEnv::new();
-        eval(&mut env, "var foo = 32;").unwrap();
-        assert_eq!(eval(&mut env, "foo").unwrap(), Value::Int(32));
-    }
-
-    #[test]
-    #[ignore = "doesn't make sense anymore due to separation of statements & expressions"]
     fn scope_visibility_rules() {
         // Declaration and assignment of variables declared in an `if`
         // statement should have no effect on those declared outside
         // of it.
+        let mut env = ExecEnv::new();
+        eval(
+            &mut env,
+            "var foo = 1; foo = 2; if (true) { var foo = 3; foo = 4; }",
+        )
+        .unwrap();
+
         assert_eq!(
-            eval(
-                &mut ExecEnv::new(),
-                "var foo = 1; if (true) { var foo = 2; foo = 3; } foo"
-            )
+            env.get_var(&Iden {
+                iden: "foo".to_owned(),
+                span: 1..1,
+            })
             .unwrap(),
-            Value::Int(1)
+            Value::Int(2)
         );
     }
 }
