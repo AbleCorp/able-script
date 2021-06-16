@@ -10,6 +10,8 @@ mod parser;
 mod repl;
 mod variables;
 
+use std::process::exit;
+
 use clap::{App, Arg};
 use interpret::ExecEnv;
 use logos::Source;
@@ -34,32 +36,30 @@ fn main() {
     match matches.value_of("file") {
         Some(file_path) => {
             // Read file
-            let source = std::fs::read_to_string(file_path).unwrap();
-
-            // Parse
-            let mut parser = Parser::new(&source);
-            let ast = parser.init();
-            match ast {
-                Ok(ast) => {
-                    println!("{:#?}", ast);
-                    let mut env = ExecEnv::new();
-                    println!("{:?}", env.eval_stmts(&ast));
-                }
+            let source = match std::fs::read_to_string(file_path) {
+                Ok(s) => s,
                 Err(e) => {
-                    println!(
-                        "Error `{:?}` occurred at span: {:?} = `{:?}`",
-                        e.kind,
-                        e.span.clone(),
-                        source.slice(e.span)
-                    );
+                    println!("Failed to read file \"{}\": {}", file_path, e);
+                    exit(1)
                 }
+            };
+
+            // Parse & evaluate
+            let mut parser = Parser::new(&source);
+            if let Err(e) = parser
+                .init()
+                .and_then(|ast| ExecEnv::new().eval_stmts(&ast))
+            {
+                println!(
+                    "Error `{:?}` occurred at span: {:?} = `{:?}`",
+                    e.kind,
+                    e.span.clone(),
+                    source.slice(e.span)
+                );
             }
         }
         None => {
-            println!(
-                "Hi [AbleScript {}] - AST Printer & Interpreter",
-                env!("CARGO_PKG_VERSION")
-            );
+            println!("Hi [AbleScript {}]", env!("CARGO_PKG_VERSION"));
             repl::repl();
         }
     }

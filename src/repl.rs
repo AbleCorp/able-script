@@ -16,7 +16,7 @@ pub fn repl() {
                 }
                 let mut parser = Parser::new(&line);
                 let value = parser.init().and_then(|ast| {
-                    println!("{:?}", &ast);
+                    // println!("{:?}", &ast);
                     env.eval_stmts(&ast)
                 });
 
