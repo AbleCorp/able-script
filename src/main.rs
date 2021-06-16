@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![forbid(unsafe_code, clippy::unwrap_used)]
 
 mod ast;
 mod base_55;
