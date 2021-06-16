@@ -3,7 +3,7 @@ use rustyline::Editor;
 
 use crate::{interpret::ExecEnv, parser::Parser};
 
-pub fn repl() {
+pub fn repl(ast_print: bool) {
     let mut rl = Editor::<()>::new();
     let mut env = ExecEnv::new();
     loop {
@@ -16,7 +16,9 @@ pub fn repl() {
                 }
                 let mut parser = Parser::new(&line);
                 let value = parser.init().and_then(|ast| {
-                    // println!("{:?}", &ast);
+                    if ast_print {
+                        println!("{:#?}", &ast);
+                    }
                     env.eval_stmts(&ast)
                 });
 

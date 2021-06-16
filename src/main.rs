@@ -31,7 +31,14 @@ fn main() {
                 .help("Set the path to interpret from")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .help("Enable debug AST printing"),
+        )
         .get_matches();
+
+    let ast_print = matches.is_present("debug");
 
     match matches.value_of("file") {
         Some(file_path) => {
@@ -46,10 +53,12 @@ fn main() {
 
             // Parse & evaluate
             let mut parser = Parser::new(&source);
-            if let Err(e) = parser
-                .init()
-                .and_then(|ast| ExecEnv::new().eval_stmts(&ast))
-            {
+            if let Err(e) = parser.init().and_then(|ast| {
+                if ast_print {
+                    println!("{:#?}", ast);
+                }
+                ExecEnv::new().eval_stmts(&ast)
+            }) {
                 println!(
                     "Error `{:?}` occurred at span: {:?} = `{:?}`",
                     e.kind,
@@ -60,7 +69,7 @@ fn main() {
         }
         None => {
             println!("Hi [AbleScript {}]", env!("CARGO_PKG_VERSION"));
-            repl::repl();
+            repl::repl(ast_print);
         }
     }
 }
