@@ -122,7 +122,7 @@ impl Value {
     /// Attempt to coerce a Value to an integer. If the conversion
     /// fails, the generated error message is associated with the
     /// given span.
-    pub fn to_i32(self, span: &Range<usize>) -> Result<i32, Error> {
+    pub fn try_into_i32(self, span: &Range<usize>) -> Result<i32, Error> {
         match self {
             Value::Int(i) => Ok(i),
             _ => Err(Error {
@@ -133,13 +133,13 @@ impl Value {
     }
 
     /// Coerce a Value to a boolean. The conversion cannot fail.
-    pub fn to_bool(self) -> bool {
+    pub fn into_bool(self) -> bool {
         match self {
             // Booleans and abooleans have a trivial conversion.
             Value::Bool(b) => b,
             Value::Abool(b) => b.into(),
             // The empty string is falsey, other strings are truthy.
-            Value::Str(s) => s.len() != 0,
+            Value::Str(s) => !s.is_empty(),
             // 0 is falsey, nonzero is truthy.
             Value::Int(x) => x != 0,
             // Functios are always truthy.

@@ -80,7 +80,7 @@ impl<'source> Parser<'source> {
             )),
             Token::Rickroll => Ok(Stmt::new(
                 self.semi_terminated(StmtKind::Rickroll)?,
-                start..self.lexer.span().end
+                start..self.lexer.span().end,
             )),
 
             Token::Identifier(_)
@@ -123,7 +123,7 @@ impl<'source> Parser<'source> {
         match self
             .lexer
             .next()
-            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
         {
             Token::Identifier(iden) => Ok(Iden {
                 iden: if self.tdark {
@@ -206,7 +206,7 @@ impl<'source> Parser<'source> {
                     let next = self
                         .lexer
                         .next()
-                        .ok_or(Error::unexpected_eof(self.lexer.span().start))?;
+                        .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?;
                     ExprKind::Not(Box::new(self.parse_expr(next, buf)?))
                 },
                 start..self.lexer.span().end,
@@ -225,13 +225,13 @@ impl<'source> Parser<'source> {
         Ok(ExprKind::BinOp {
             lhs: Box::new(
                 lhs.take()
-                    .ok_or(Error::new(ErrorKind::MissingLhs, self.lexer.span()))?,
+                    .ok_or_else(|| Error::new(ErrorKind::MissingLhs, self.lexer.span()))?,
             ),
             rhs: {
                 let next = self
                     .lexer
                     .next()
-                    .ok_or(Error::unexpected_eof(self.lexer.span().start))?;
+                    .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?;
                 Box::new(self.parse_expr(next, &mut None)?)
             },
             kind,
@@ -245,12 +245,12 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 t if t == terminate => {
-                    break buf
-                        .take()
-                        .ok_or(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span()))?
+                    break buf.take().ok_or_else(|| {
+                        Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())
+                    })?
                 }
                 t => buf = Some(self.parse_expr(t, &mut buf)?),
             }
@@ -266,7 +266,7 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 Token::RightCurly => break,
                 t => block.push(self.parse(t)?),
@@ -284,14 +284,13 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 // Print to stdout
                 Token::Print => {
-                    let stmt = StmtKind::Print(buf.take().ok_or(Error::new(
-                        ErrorKind::UnexpectedToken(Token::Print),
-                        self.lexer.span(),
-                    ))?);
+                    let stmt = StmtKind::Print(buf.take().ok_or_else(|| {
+                        Error::new(ErrorKind::UnexpectedToken(Token::Print), self.lexer.span())
+                    })?);
                     break self.semi_terminated(stmt)?;
                 }
 
@@ -352,7 +351,7 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 Token::RightParen => break,
                 Token::Identifier(i) => {
@@ -362,7 +361,7 @@ impl<'source> Parser<'source> {
                     match self
                         .lexer
                         .next()
-                        .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                        .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
                     {
                         Token::Comma => continue,
                         Token::RightParen => break,
@@ -392,7 +391,7 @@ impl<'source> Parser<'source> {
         let tape_len = match self
             .lexer
             .next()
-            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
         {
             Token::LeftParen => {
                 let len = Some(self.expr_flow(Token::RightParen)?);
@@ -413,7 +412,7 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 Token::Plus
                 | Token::Minus
@@ -443,7 +442,7 @@ impl<'source> Parser<'source> {
             match self
                 .lexer
                 .next()
-                .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
             {
                 // End of argument list
                 Token::RightParen => {
@@ -478,7 +477,7 @@ impl<'source> Parser<'source> {
         let init = match self
             .lexer
             .next()
-            .ok_or(Error::unexpected_eof(self.lexer.span().start))?
+            .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?
         {
             Token::Equal => Some(self.expr_flow(Token::Semicolon)?),
             Token::Semicolon => None,

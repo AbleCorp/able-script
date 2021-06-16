@@ -126,8 +126,8 @@ impl ExecEnv {
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
-                        let lhs = lhs.to_i32(&expr.span)?;
-                        let rhs = rhs.to_i32(&expr.span)?;
+                        let lhs = lhs.try_into_i32(&expr.span)?;
+                        let rhs = rhs.try_into_i32(&expr.span)?;
 
                         let res = match kind {
                             Add => lhs.checked_add(rhs),
@@ -145,8 +145,8 @@ impl ExecEnv {
 
                     // Numeric comparisons.
                     Less | Greater => {
-                        let lhs = lhs.to_i32(&expr.span)?;
-                        let rhs = rhs.to_i32(&expr.span)?;
+                        let lhs = lhs.try_into_i32(&expr.span)?;
+                        let rhs = rhs.try_into_i32(&expr.span)?;
 
                         let res = match kind {
                             Less => lhs < rhs,
@@ -168,8 +168,8 @@ impl ExecEnv {
 
                     // Logical connectives.
                     And | Or => {
-                        let lhs = lhs.to_bool();
-                        let rhs = rhs.to_bool();
+                        let lhs = lhs.into_bool();
+                        let rhs = rhs.into_bool();
                         let res = match kind {
                             And => lhs && rhs,
                             Or => lhs || rhs,
@@ -179,7 +179,7 @@ impl ExecEnv {
                     }
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(&expr)?.to_bool()),
+            Not(expr) => Bool(!self.eval_expr(&expr)?.into_bool()),
             Literal(value) => value.clone(),
 
             // TODO: not too happy with constructing an artificial
@@ -225,7 +225,7 @@ impl ExecEnv {
                             .as_ref()
                             .map(|tape_len| {
                                 self.eval_expr(tape_len)
-                                    .and_then(|v| v.to_i32(&stmt.span))
+                                    .and_then(|v| v.try_into_i32(&stmt.span))
                                     .map(|len| len as usize)
                             })
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
@@ -233,7 +233,7 @@ impl ExecEnv {
                 );
             }
             StmtKind::If { cond, body } => {
-                if self.eval_expr(cond)?.to_bool() {
+                if self.eval_expr(cond)?.into_bool() {
                     return self.eval_stmts_hs(&body.block, true);
                 }
             }
