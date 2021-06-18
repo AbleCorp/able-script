@@ -9,12 +9,11 @@
 #![deny(missing_docs)]
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    io::{stdout, Write},
+    collections::{HashMap, VecDeque},
+    io::{stdin, stdout, Read, Write},
     ops::Range,
     process::exit,
     rc::Rc,
-    usize,
 };
 
 use rand::random;
@@ -32,6 +31,13 @@ pub struct ExecEnv {
     /// top-most (newest) stack frame, and `stack[0]` is the
     /// bottom-most (oldest) stack frame.
     stack: Vec<Scope>,
+
+    /// The `read` statement maintains a buffer of up to 7 bits,
+    /// because input comes from the operating system 8 bits at a time
+    /// (via stdin) but gets delivered to AbleScript 3 bits at a time
+    /// (via the `read` statement). We store each of those bits as
+    /// booleans to facilitate easy manipulation.
+    read_buf: VecDeque<bool>,
 }
 
 /// A set of visible variable and function definitions in a single
@@ -58,6 +64,10 @@ enum HaltStatus {
     Hopback(Range<usize>),
 }
 
+/// The number of bits the `read` statement reads at once from
+/// standard input.
+pub const READ_BITS: u8 = 3;
+
 impl ExecEnv {
     /// Create a new Scope with no predefined variable definitions or
     /// other information.
@@ -65,6 +75,7 @@ impl ExecEnv {
         Self {
             // We always need at least one stackframe.
             stack: vec![Default::default()],
+            read_buf: Default::default(),
         }
     }
 
@@ -205,13 +216,15 @@ impl ExecEnv {
 
                 self.decl_var(&iden.iden, init);
             }
-            StmtKind::Functio { iden, params, body } => self.decl_var(
-                &iden.iden,
-                Value::Functio(Functio::AbleFunctio {
-                    params: params.iter().map(|iden| iden.iden.to_string()).collect(),
-                    body: body.block.to_owned(),
-                }),
-            ),
+            StmtKind::Functio { iden, params, body } => {
+                self.decl_var(
+                    &iden.iden,
+                    Value::Functio(Functio::AbleFunctio {
+                        params: params.iter().map(|iden| iden.iden.to_string()).collect(),
+                        body: body.block.to_owned(),
+                    }),
+                );
+            }
             StmtKind::BfFunctio {
                 iden,
                 tape_len,
@@ -280,7 +293,15 @@ impl ExecEnv {
                     .write_all(include_str!("rickroll").as_bytes())
                     .expect("Failed to write to stdout");
             }
-            StmtKind::Read(_) => todo!(),
+            StmtKind::Read(iden) => {
+                let mut value = 0;
+                for _ in 0..READ_BITS {
+                    value <<= 1;
+                    value += self.get_bit()? as i32;
+                }
+
+                self.get_var_mut(&iden)?.value.replace(Value::Int(value));
+            }
         }
 
         Ok(HaltStatus::Finished)
@@ -354,6 +375,26 @@ impl ExecEnv {
             }
         }
         Ok(())
+    }
+
+    /// Get a single bit from the bit buffer, or refill it from
+    /// standard input if it is empty.
+    fn get_bit(&mut self) -> Result<bool, Error> {
+        const BITS_PER_BYTE: u8 = 8;
+
+        if self.read_buf.is_empty() {
+            let mut data = [0];
+            stdin().read_exact(&mut data)?;
+
+            for n in (0..BITS_PER_BYTE).rev() {
+                self.read_buf.push_back(((data[0] >> n) & 1) != 0);
+            }
+        }
+
+        Ok(self
+            .read_buf
+            .pop_front()
+            .expect("We just pushed to the buffer if it was empty"))
     }
 
     /// Get the value of a variable. Throw an error if the variable is
