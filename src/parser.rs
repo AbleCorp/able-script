@@ -318,6 +318,18 @@ impl<'source> Parser<'source> {
                         };
                     }
                 }
+
+                // Read input
+                Token::Read => {
+                    if let Some(Expr {
+                        kind: ExprKind::Variable(iden),
+                        span,
+                    }) = buf
+                    {
+                        break self.semi_terminated(StmtKind::Read(Iden::new(iden, span)))?;
+                    }
+                }
+
                 t => buf = Some(self.parse_expr(t, &mut buf)?),
             }
         };

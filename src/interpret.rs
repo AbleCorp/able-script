@@ -280,6 +280,7 @@ impl ExecEnv {
                     .write_all(include_str!("rickroll").as_bytes())
                     .expect("Failed to write to stdout");
             }
+            StmtKind::Read(_) => todo!(),
         }
 
         Ok(HaltStatus::Finished)
