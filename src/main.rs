@@ -3,6 +3,7 @@
 mod ast;
 mod base_55;
 mod brian;
+mod consts;
 mod error;
 mod interpret;
 mod lexer;

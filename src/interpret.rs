@@ -21,7 +21,7 @@ use rand::random;
 
 use crate::{
     ast::{Expr, ExprKind, Iden, Stmt, StmtKind},
-    base_55,
+    base_55, consts,
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
 };
@@ -136,10 +136,7 @@ impl ExecEnv {
                             Divide => lhs.checked_div(rhs),
                             _ => unreachable!(),
                         }
-                        .ok_or(Error {
-                            kind: ErrorKind::ArithmeticError,
-                            span: expr.span.clone(),
-                        })?;
+                        .unwrap_or(consts::ANSWER);
                         Int(res)
                     }
 
@@ -501,7 +498,7 @@ mod tests {
         // Integer overflow should throw a recoverable error instead
         // of panicking.
         let env = ExecEnv::new();
-        assert!(matches!(
+        assert_eq!(
             env.eval_expr(&Expr {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
@@ -515,15 +512,13 @@ mod tests {
                     kind: crate::ast::BinOpKind::Add,
                 },
                 span: 1..1
-            }),
-            Err(Error {
-                kind: ErrorKind::ArithmeticError,
-                span: _,
             })
-        ));
+            .unwrap(),
+            Value::Int(42)
+        );
 
         // And the same for divide by zero.
-        assert!(matches!(
+        assert_eq!(
             env.eval_expr(&Expr {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
@@ -537,12 +532,10 @@ mod tests {
                     kind: crate::ast::BinOpKind::Divide,
                 },
                 span: 1..1
-            }),
-            Err(Error {
-                kind: ErrorKind::ArithmeticError,
-                span: _,
             })
-        ));
+            .unwrap(),
+            Value::Int(42)
+        );
     }
 
     // From here on out, I'll use this function to parse and run
