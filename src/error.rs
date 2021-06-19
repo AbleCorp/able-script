@@ -1,14 +1,14 @@
-use std::ops::Range;
+use std::{io, ops::Range};
 
 use crate::{brian::InterpretError, lexer::Token};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Error {
     pub kind: ErrorKind,
     pub span: Range<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ErrorKind {
     SyntaxError(String),
     UnexpectedEof,
@@ -21,6 +21,7 @@ pub enum ErrorKind {
     BfInterpretError(InterpretError),
     MismatchedArgumentError,
     MissingLhs,
+    IOError(io::Error),
 }
 
 impl Error {
@@ -32,5 +33,14 @@ impl Error {
     /// given index in the file.
     pub fn unexpected_eof(index: usize) -> Self {
         Self::new(ErrorKind::UnexpectedEof, index..index)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Self {
+            kind: ErrorKind::IOError(e),
+            span: 0..0,
+        }
     }
 }

@@ -86,6 +86,10 @@ pub enum Token {
     #[token("print")]
     Print,
 
+    /// Read input into preceding variable
+    #[token("read")]
+    Read,
+
     /// Ban the following variable from ever being used again
     #[token("melo")]
     Melo,

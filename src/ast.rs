@@ -73,6 +73,7 @@ pub enum StmtKind {
         args: Vec<Expr>,
     },
     Print(Expr),
+    Read(Iden),
     Melo(Iden),
     Rlyeh,
     Rickroll,
