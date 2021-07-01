@@ -5,7 +5,7 @@
 
 [Able Script Book](https://ablecorp.us/able-script-the-book)
 
-Still shitty
+Still better than Javascript ://
 
 ## About
 Ablescript is designed to be bad.
