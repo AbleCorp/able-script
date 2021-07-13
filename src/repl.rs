@@ -1,4 +1,3 @@
-use logos::Source;
 use rustyline::Editor;
 
 use crate::{interpret::ExecEnv, parser::Parser};
@@ -10,7 +9,13 @@ pub fn repl(ast_print: bool) {
         let readline = rl.readline(":: ");
         match readline {
             Ok(line) => {
-                if &line == "exit" {
+                // NOTE(Alex): `readline()` leaves a newline at the
+                // end of the string if stdin is connected to a file
+                // or unsupported terminal; this can interfere with
+                // error printing.
+                let line = line.trim_end();
+
+                if line == "exit" {
                     println!("bye");
                     break;
                 }
@@ -23,16 +28,10 @@ pub fn repl(ast_print: bool) {
                 });
 
                 if let Err(e) = value {
-                    println!(
-                        "Error `{:?}` occurred at span: {:?} = `{:?}`",
-                        e.kind,
-                        e.span.clone(),
-                        line.slice(e.span.clone())
-                    );
-
+                    println!("{}", e);
                     println!(" | {}", line);
                     println!(
-                        "   {}{}-- Here",
+                        "   {}{}",
                         " ".repeat(e.span.start),
                         "^".repeat((e.span.end - e.span.start).max(1))
                     );

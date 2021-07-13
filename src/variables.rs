@@ -126,7 +126,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(i),
             _ => Err(Error {
-                kind: ErrorKind::TypeError(format!("Expected int, got {}", self)),
+                kind: ErrorKind::TypeError(format!("expected int, got {}", self)),
                 span: span.clone(),
             }),
         }

@@ -20,6 +20,8 @@
 
 use std::{
     collections::VecDeque,
+    error::Error,
+    fmt::Display,
     io::{Read, Write},
 };
 
@@ -288,6 +290,25 @@ pub enum ProgramError {
     TapeSizeExceededLimit,
 }
 
+impl Display for ProgramError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ProgramError::DataPointerUnderflow => "data pointer underflow",
+                ProgramError::IntegerOverflow => "integer overflow",
+                ProgramError::IntegerUnderflow => "integer underflow",
+                ProgramError::InputReadError => "input read error",
+                ProgramError::UnmatchedOpeningBracket => "unmatched `[`",
+                ProgramError::UnmatchedClosingBracket => "unmatched `]`",
+                ProgramError::TapeSizeExceededLimit => "tape size exceeded",
+            }
+        )
+    }
+}
+impl Error for ProgramError {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// An error that occurred while the interpreter was being run start-to-end all in one go
 pub enum InterpretError {
@@ -296,6 +317,18 @@ pub enum InterpretError {
     OutputBufferFull,
     OutputWriteError,
 }
+
+impl Display for InterpretError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InterpretError::ProgramError(e) => write!(f, "program error: {}", e),
+            InterpretError::EndOfInput => write!(f, "unexpected end of input"),
+            InterpretError::OutputBufferFull => write!(f, "output buffer full"),
+            InterpretError::OutputWriteError => write!(f, "output write error"),
+        }
+    }
+}
+impl Error for InterpretError {}
 
 impl From<ProgramError> for InterpretError {
     fn from(e: ProgramError) -> Self {

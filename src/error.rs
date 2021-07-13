@@ -1,4 +1,4 @@
-use std::{io, ops::Range};
+use std::{fmt::Display, io, ops::Range};
 
 use crate::{brian::InterpretError, lexer::Token};
 
@@ -33,6 +33,37 @@ impl Error {
     /// given index in the file.
     pub fn unexpected_eof(index: usize) -> Self {
         Self::new(ErrorKind::UnexpectedEof, index..index)
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Error at range {}-{}: {}",
+            self.span.start, self.span.end, self.kind
+        )
+    }
+}
+impl std::error::Error for Error {}
+
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorKind::SyntaxError(desc) => write!(f, "syntax error: {}", desc),
+            ErrorKind::UnexpectedEof => write!(f, "unexpected end of file"),
+            ErrorKind::UnexpectedToken(token) => write!(f, "unexpected token {:?}", token),
+            ErrorKind::InvalidIdentifier => write!(f, "invalid identifier"),
+            ErrorKind::UnknownVariable(name) => write!(f, "unknown identifier \"{}\"", name),
+            ErrorKind::MeloVariable(name) => write!(f, "banned variable \"{}\"", name),
+            ErrorKind::TypeError(desc) => write!(f, "type error: {}", desc),
+            ErrorKind::TopLevelBreak => write!(f, "can only `break` out of a loop"),
+            ErrorKind::BfInterpretError(err) => write!(f, "brainfuck error: {}", err),
+            // TODO: give concrete numbers here.
+            ErrorKind::MismatchedArgumentError => write!(f, "wrong number of function arguments"),
+            ErrorKind::MissingLhs => write!(f, "missing expression before binary operation"),
+            ErrorKind::IOError(err) => write!(f, "I/O error: {}", err),
+        }
     }
 }
 
