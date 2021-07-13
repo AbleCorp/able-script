@@ -20,7 +20,8 @@ use rand::random;
 
 use crate::{
     ast::{Expr, ExprKind, Iden, Stmt, StmtKind},
-    base_55, consts,
+    base_55,
+    consts::{self, ablescript_consts},
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
 };
@@ -42,12 +43,17 @@ pub struct ExecEnv {
 
 /// A set of visible variable and function definitions in a single
 /// stack frame.
-#[derive(Default)]
 struct Scope {
     /// The mapping from variable names to values.
     variables: HashMap<String, Variable>,
-    // In the future, this will store functio definitions and possibly
-    // other information.
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self {
+            variables: ablescript_consts(),
+        }
+    }
 }
 
 /// The reason a successful series of statements halted.
