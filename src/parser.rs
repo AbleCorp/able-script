@@ -105,14 +105,14 @@ impl<'source> Parser<'source> {
     ///
     /// Utility function for short statements
     fn semi_terminated(&mut self, stmt_kind: StmtKind) -> Result<StmtKind, Error> {
-        self.require([Token::Semicolon])?;
+        self.require(Token::Semicolon)?;
         Ok(stmt_kind)
     }
 
     /// Require next item to be equal with expected one
-    fn require<const N: usize>(&mut self, expected: [Token; N]) -> Result<Token, Error> {
+    fn require(&mut self, expected: Token) -> Result<(), Error> {
         match self.lexer.next() {
-            Some(t) if expected.contains(&t) => Ok(t),
+            Some(t) if t == expected => Ok(()),
             Some(t) => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
             None => Err(Error::unexpected_eof(self.lexer.span().start)),
         }
@@ -259,7 +259,7 @@ impl<'source> Parser<'source> {
 
     /// Parse a list of statements between curly braces
     fn get_block(&mut self) -> Result<Block, Error> {
-        self.require([Token::LeftCurly])?;
+        self.require(Token::LeftCurly)?;
         let mut block = vec![];
 
         loop {
@@ -341,7 +341,7 @@ impl<'source> Parser<'source> {
     ///
     /// Consists of condition and block, there is no else
     fn if_flow(&mut self) -> Result<StmtKind, Error> {
-        self.require([Token::LeftParen])?;
+        self.require(Token::LeftParen)?;
 
         let cond = self.expr_flow(Token::RightParen)?;
 
@@ -356,7 +356,7 @@ impl<'source> Parser<'source> {
     fn functio_flow(&mut self) -> Result<StmtKind, Error> {
         let iden = self.get_iden()?;
 
-        self.require([Token::LeftParen])?;
+        self.require(Token::LeftParen)?;
 
         let mut params = vec![];
         loop {
@@ -407,7 +407,7 @@ impl<'source> Parser<'source> {
         {
             Token::LeftParen => {
                 let len = Some(self.expr_flow(Token::RightParen)?);
-                self.require([Token::LeftCurly])?;
+                self.require(Token::LeftCurly)?;
                 len
             }
             Token::LeftCurly => None,
@@ -479,7 +479,7 @@ impl<'source> Parser<'source> {
             }
         }
 
-        self.require([Token::Semicolon])?;
+        self.require(Token::Semicolon)?;
         Ok(StmtKind::Call { iden, args })
     }
 
