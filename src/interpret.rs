@@ -143,8 +143,8 @@ impl ExecEnv {
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
-                        let lhs = lhs.try_into_i32(&expr.span)?;
-                        let rhs = rhs.try_into_i32(&expr.span)?;
+                        let lhs = lhs.into_i32();
+                        let rhs = rhs.into_i32();
 
                         let res = match kind {
                             Add => lhs.checked_add(rhs),
@@ -159,8 +159,8 @@ impl ExecEnv {
 
                     // Numeric comparisons.
                     Less | Greater => {
-                        let lhs = lhs.try_into_i32(&expr.span)?;
-                        let rhs = rhs.try_into_i32(&expr.span)?;
+                        let lhs = lhs.into_i32();
+                        let rhs = rhs.into_i32();
 
                         let res = match kind {
                             Less => lhs < rhs,
@@ -241,8 +241,7 @@ impl ExecEnv {
                             .as_ref()
                             .map(|tape_len| {
                                 self.eval_expr(tape_len)
-                                    .and_then(|v| v.try_into_i32(&stmt.span))
-                                    .map(|len| len as usize)
+                                    .map(|v| v.into_i32() as usize)
                             })
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
                     }),

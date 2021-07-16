@@ -1,11 +1,8 @@
-use std::{cell::RefCell, fmt::Display, io::Write, ops::Range, rc::Rc};
+use std::{cell::RefCell, fmt::Display, io::Write, rc::Rc};
 
 use rand::Rng;
 
-use crate::{
-    ast::Stmt,
-    error::{Error, ErrorKind},
-};
+use crate::{ast::Stmt, consts};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Abool {
@@ -119,35 +116,33 @@ impl Value {
         .expect("Failed to write to Brainfuck input");
     }
 
-    /// Attempt to coerce a Value to an integer. If the conversion
-    /// fails, the generated error message is associated with the
-    /// given span.
-    pub fn try_into_i32(self, span: &Range<usize>) -> Result<i32, Error> {
+    /// Coerce a value to an integer.
+    pub fn into_i32(self) -> i32 {
         match self {
-            Value::Int(i) => Ok(i),
-            _ => Err(Error {
-                kind: ErrorKind::TypeError(format!("expected int, got {}", self)),
-                span: span.clone(),
-            }),
+            Value::Abool(a) => a as _,
+            Value::Bool(b) => b as _,
+            Value::Functio(func) => match func {
+                Functio::BfFunctio {
+                    instructions,
+                    tape_len,
+                } => (instructions.len() + tape_len) as _,
+                Functio::AbleFunctio { params, body } => (params.len() + body.len()) as _,
+            },
+            Value::Int(i) => i,
+            Value::Nul => consts::ANSWER,
+            Value::Str(text) => text.parse().unwrap_or(consts::ANSWER),
         }
     }
 
     /// Coerce a Value to a boolean. The conversion cannot fail.
     pub fn into_bool(self) -> bool {
         match self {
-            // Booleans and abooleans have a trivial conversion.
-            Value::Bool(b) => b,
             Value::Abool(b) => b.into(),
-            // The empty string is falsey, other strings are truthy.
-            Value::Str(s) => !s.is_empty(),
-            // 0 is falsey, nonzero is truthy.
-            Value::Int(x) => x != 0,
-            // Functios are always truthy.
+            Value::Bool(b) => b,
             Value::Functio(_) => true,
-            // And nul is truthy as a symbol of the fact that the
-            // deep, fundamental truth of this world is nothing but
-            // the eternal void.
+            Value::Int(x) => x != 0,
             Value::Nul => true,
+            Value::Str(s) => !s.is_empty(),
         }
     }
 }
