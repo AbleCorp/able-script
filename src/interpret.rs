@@ -258,14 +258,7 @@ impl ExecEnv {
                 if let Value::Functio(func) = func {
                     self.fn_call(func, &args, &stmt.span)?;
                 } else {
-                    return Err(Error {
-                        kind: ErrorKind::TypeError(format!(
-                            "attempt to call non-function `{}` (= {})",
-                            iden.iden.to_owned(),
-                            func
-                        )),
-                        span: stmt.span.clone(),
-                    });
+                    // Fail silently for now.
                 }
             }
             StmtKind::Loop { body } => loop {
