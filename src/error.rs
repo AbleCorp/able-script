@@ -16,7 +16,6 @@ pub enum ErrorKind {
     InvalidIdentifier,
     UnknownVariable(String),
     MeloVariable(String),
-    TypeError(String),
     TopLevelBreak,
     BfInterpretError(InterpretError),
     MismatchedArgumentError,
@@ -56,7 +55,6 @@ impl Display for ErrorKind {
             ErrorKind::InvalidIdentifier => write!(f, "invalid identifier"),
             ErrorKind::UnknownVariable(name) => write!(f, "unknown identifier \"{}\"", name),
             ErrorKind::MeloVariable(name) => write!(f, "banned variable \"{}\"", name),
-            ErrorKind::TypeError(desc) => write!(f, "type error: {}", desc),
             ErrorKind::TopLevelBreak => write!(f, "can only `break` out of a loop"),
             ErrorKind::BfInterpretError(err) => write!(f, "brainfuck error: {}", err),
             // TODO: give concrete numbers here.
