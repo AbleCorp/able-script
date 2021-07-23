@@ -54,66 +54,15 @@ pub enum Value {
 }
 
 impl Value {
-    /// Write an AbleScript value to a Brainfuck input stream. This
-    /// should generally only be called on `Write`rs that cannot fail,
-    /// e.g., `Vec<u8>`, because any IO errors will cause a panic.
-    ///
-    /// The mapping from values to encodings is as follows, where all
-    /// multi-byte integers are little-endian:
-    ///
-    /// | AbleScript representation | Brainfuck representation                                    |
-    /// |---------------------------|-------------------------------------------------------------|
-    /// | Nul                       | `00`                                                        |
-    /// | Str                       | `01` [length, 4 bytes] [string, \[LENGTH\] bytes, as UTF-8] |
-    /// | Int                       | `02` [value, 4 bytes]                                       |
-    /// | Bool                      | `03` `00` false, `03` `01` true.                            |
-    /// | Abool                     | `04` `00` never, `04` `01` always, `04` `02` sometimes.     |
-    /// | Brainfuck Functio         | `05` `00` [length, 4 bytes] [source code, \[LENGTH\] bytes] |
-    /// | AbleScript Functio        | `05` `01` (todo, not yet finalized or implemented)          |
-    ///
-    /// The existing mappings should never change, as they are
-    /// directly visible from Brainfuck code and modifying them would
-    /// break a significant amount of AbleScript code. If more types
-    /// are added in the future, they should be assigned the remaining
-    /// discriminant bytes from 06..FF.
+    /// Write an AbleScript value to a Brainfuck input stream by
+    /// coercing the value to an integer, then truncating that integer
+    /// to a single byte, then writing that byte. This should only be
+    /// called on `Write`rs that cannot fail, e.g., `Vec<u8>`, because
+    /// any IO errors will cause a panic.
     pub fn bf_write(&self, stream: &mut impl Write) {
-        match self {
-            Value::Nul => stream.write_all(&[0]),
-            Value::Str(s) => stream
-                .write_all(&[1])
-                .and_then(|_| stream.write_all(&(s.len() as u32).to_le_bytes()))
-                .and_then(|_| stream.write_all(&s.as_bytes())),
-            Value::Int(v) => stream
-                .write_all(&[2])
-                .and_then(|_| stream.write_all(&v.to_le_bytes())),
-            Value::Bool(b) => stream
-                .write_all(&[3])
-                .and_then(|_| stream.write_all(&[*b as _])),
-            Value::Abool(a) => stream.write_all(&[4]).and_then(|_| {
-                stream.write_all(&[match *a {
-                    Abool::Never => 0,
-                    Abool::Sometimes => 2,
-                    Abool::Always => 1,
-                }])
-            }),
-            Value::Functio(f) => stream.write_all(&[5]).and_then(|_| match f {
-                Functio::BfFunctio {
-                    instructions,
-                    tape_len: _,
-                } => {
-                    // NOTE(Alex): Tape length should maybe be taken
-                    // into account here.
-                    stream
-                        .write_all(&[0])
-                        .and_then(|_| stream.write_all(&(instructions.len() as u32).to_le_bytes()))
-                        .and_then(|_| stream.write_all(&instructions))
-                }
-                Functio::AbleFunctio { params: _, body: _ } => {
-                    todo!()
-                }
-            }),
-        }
-        .expect("Failed to write to Brainfuck input");
+        stream
+            .write_all(&[self.clone().into_i32() as u8])
+            .expect("Failed to write to Brainfuck input");
     }
 
     /// Coerce a value to an integer.
