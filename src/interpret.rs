@@ -239,10 +239,7 @@ impl ExecEnv {
                         instructions: code.to_owned(),
                         tape_len: tape_len
                             .as_ref()
-                            .map(|tape_len| {
-                                self.eval_expr(tape_len)
-                                    .map(|v| v.into_i32() as usize)
-                            })
+                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.into_i32() as usize))
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
                     }),
                 );
@@ -335,7 +332,7 @@ impl ExecEnv {
                 for arg in args {
                     arg.borrow().bf_write(&mut input);
                 }
-                println!("input = {:?}", input);
+
                 let mut output = vec![];
 
                 crate::brian::Interpreter::from_ascii_with_tape_limit(
