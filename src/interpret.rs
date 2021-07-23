@@ -508,11 +508,11 @@ mod tests {
     }
 
     #[test]
-    fn type_errors() {
-        // The sum of an integer and a boolean results in a type
-        // error.
+    fn type_coercions() {
+        // The sum of an integer and a boolean causes a boolean
+        // coercion.
         let env = ExecEnv::new();
-        assert!(matches!(
+        assert_eq!(
             env.eval_expr(&Expr {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
@@ -526,12 +526,10 @@ mod tests {
                     kind: crate::ast::BinOpKind::Add,
                 },
                 span: 1..1
-            }),
-            Err(Error {
-                kind: ErrorKind::TypeError(_),
-                span: _,
             })
-        ));
+            .unwrap(),
+            Value::Int(3)
+        );
     }
 
     #[test]
