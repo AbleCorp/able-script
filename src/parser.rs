@@ -98,6 +98,7 @@ impl<'source> Parser<'source> {
             | Token::Integer(_)
             | Token::Abool(_)
             | Token::Bool(_)
+            | Token::LeftBracket
             | Token::LeftParen => Ok(Stmt::new(
                 self.value_flow(token)?,
                 start..self.lexer.span().end,
@@ -188,6 +189,17 @@ impl<'source> Parser<'source> {
                 start..self.lexer.span().end,
             )),
 
+            Token::LeftBracket => match buf.take() {
+                Some(buf) => Ok(Expr::new(
+                    ExprKind::Index {
+                        cart: Box::new(buf),
+                        index: Box::new(self.expr_flow(Token::RightBracket)?),
+                    },
+                    start..self.lexer.span().end,
+                )),
+                None => todo!("cart construction"),
+            },
+
             // Operations
             Token::Plus
             | Token::Minus
@@ -213,6 +225,7 @@ impl<'source> Parser<'source> {
                 },
                 start..self.lexer.span().end,
             )),
+
             Token::LeftParen => self.expr_flow(Token::RightParen),
             t => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
         }
