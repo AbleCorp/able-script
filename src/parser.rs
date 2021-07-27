@@ -197,7 +197,7 @@ impl<'source> Parser<'source> {
                     },
                     start..self.lexer.span().end,
                 )),
-                None => todo!("cart construction"),
+                None => Ok(Expr::new(self.cart_flow()?, start..self.lexer.span().end)),
             },
 
             // Operations
@@ -229,6 +229,11 @@ impl<'source> Parser<'source> {
             Token::LeftParen => self.expr_flow(Token::RightParen),
             t => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
         }
+    }
+
+    /// Flow for creating carts
+    fn cart_flow(&mut self) -> Result<ExprKind, Error> {
+        todo!("cart construction")
     }
 
     /// Flow for operators
