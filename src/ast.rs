@@ -102,6 +102,11 @@ pub enum ExprKind {
     },
     Not(Box<Expr>),
     Literal(Value),
+    Cart(Vec<(Expr, Expr)>),
+    Index {
+        cart: Box<Expr>,
+        index: Box<Expr>,
+    },
     Variable(String),
 }
 

@@ -195,6 +195,7 @@ impl ExecEnv {
             }
             Not(expr) => Bool(!self.eval_expr(&expr)?.into_bool()),
             Literal(value) => value.clone(),
+            Cart(_) | Index { .. } => todo!("cart support"),
 
             // TODO: not too happy with constructing an artificial
             // Iden here.
