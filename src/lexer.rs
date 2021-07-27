@@ -48,6 +48,9 @@ pub enum Token {
     #[token("=")]
     Equal,
 
+    #[token("<=")]
+    Arrow,
+
     // Logical operators
     #[token("<")]
     LessThan,
