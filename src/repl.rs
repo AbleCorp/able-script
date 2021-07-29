@@ -21,7 +21,7 @@ pub fn repl(ast_print: bool) {
                     break;
                 }
                 
-                let mut parser = Parser::new(&line);
+                let mut parser = Parser::new(line);
                 let value = parser.init().and_then(|ast| {
                     if ast_print {
                         println!("{:#?}", &ast);

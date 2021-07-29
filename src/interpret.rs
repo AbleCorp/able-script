@@ -138,8 +138,8 @@ impl ExecEnv {
 
         Ok(match &expr.kind {
             BinOp { lhs, rhs, kind } => {
-                let lhs = self.eval_expr(&lhs)?;
-                let rhs = self.eval_expr(&rhs)?;
+                let lhs = self.eval_expr(lhs)?;
+                let rhs = self.eval_expr(rhs)?;
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
@@ -193,7 +193,7 @@ impl ExecEnv {
                     }
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(&expr)?.into_bool()),
+            Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
             Literal(value) => value.clone(),
             ExprKind::Cart(members) => Value::Cart(
                 members
@@ -268,10 +268,10 @@ impl ExecEnv {
                 }
             }
             StmtKind::Call { iden, args } => {
-                let func = self.get_var(&iden)?;
+                let func = self.get_var(iden)?;
 
                 if let Value::Functio(func) = func {
-                    self.fn_call(func, &args, &stmt.span)?;
+                    self.fn_call(func, args, &stmt.span)?;
                 } else {
                     // Fail silently for now.
                 }
@@ -286,7 +286,7 @@ impl ExecEnv {
             },
             StmtKind::Assign { iden, value } => {
                 let value = self.eval_expr(value)?;
-                self.get_var_mut(&iden)?.value.replace(value);
+                self.get_var_mut(iden)?.value.replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
@@ -295,7 +295,7 @@ impl ExecEnv {
                 return Ok(HaltStatus::Hopback(stmt.span.clone()));
             }
             StmtKind::Melo(iden) => {
-                self.get_var_mut(&iden)?.melo = true;
+                self.get_var_mut(iden)?.melo = true;
             }
             StmtKind::Rlyeh => {
                 // Maybe print a creepy error message or something
@@ -314,7 +314,7 @@ impl ExecEnv {
                     value += self.get_bit()? as i32;
                 }
 
-                self.get_var_mut(&iden)?.value.replace(Value::Int(value));
+                self.get_var_mut(iden)?.value.replace(Value::Int(value));
             }
         }
 

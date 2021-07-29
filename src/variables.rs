@@ -122,7 +122,7 @@ impl Value {
     /// Coerce a Value to a boolean. The conversion cannot fail.
     pub fn into_bool(&self) -> bool {
         match self {
-            Value::Abool(b) => b.clone().into(),
+            Value::Abool(b) => (*b).into(),
             Value::Bool(b) => *b,
             Value::Functio(_) => true,
             Value::Int(x) => *x != 0,
@@ -138,13 +138,13 @@ impl Value {
             Value::Nul => Value::Nul,
             Value::Str(s) => Value::Int(s.as_bytes()[index.into_i32() as usize] as i32),
             Value::Int(i) => Value::Int(
-                (format!("{}", i).as_bytes()[index.into_i32() as usize] - ('0' as u8)) as i32,
+                (format!("{}", i).as_bytes()[index.into_i32() as usize] - b'0') as i32,
             ),
             Value::Bool(b) => Value::Int(
                 format!("{}", b)
                     .chars()
                     .nth(index.into_i32() as usize)
-                    .unwrap_or_else(|| '?') as i32,
+                    .unwrap_or('?') as i32,
             ),
             Value::Abool(b) => Value::Int(*b as i32),
             Value::Functio(_) => Value::Int(42),
