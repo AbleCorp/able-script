@@ -195,7 +195,24 @@ impl ExecEnv {
             }
             Not(expr) => Bool(!self.eval_expr(&expr)?.into_bool()),
             Literal(value) => value.clone(),
-            Cart(_) | Index { .. } => todo!("cart support"),
+            ExprKind::Cart(members) => Value::Cart(
+                members
+                    .iter()
+                    .map(|(value, key)| {
+                        self.eval_expr(value).and_then(|value| {
+                            self.eval_expr(key)
+                                .map(|key| (key, Rc::new(RefCell::new(value))))
+                        })
+                    })
+                    .collect::<Result<HashMap<_, _>, _>>()?,
+            ),
+            Index { cart, index } => {
+                let cart = self.eval_expr(cart)?;
+                let index = self.eval_expr(index)?;
+
+                // TODO: this probably shouldn't be cloned
+                cart.index(&index).borrow().clone()
+            }
 
             // TODO: not too happy with constructing an artificial
             // Iden here.

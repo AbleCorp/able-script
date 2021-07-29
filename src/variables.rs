@@ -1,10 +1,10 @@
-use std::{cell::RefCell, fmt::Display, io::Write, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, io::Write, rc::Rc};
 
 use rand::Rng;
 
 use crate::{ast::Stmt, consts};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Abool {
     Never = -1,
     Sometimes = 0,
@@ -43,7 +43,7 @@ pub enum Functio {
     },
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Nul,
     Str(String),
@@ -51,7 +51,42 @@ pub enum Value {
     Bool(bool),
     Abool(Abool),
     Functio(Functio),
+    Cart(HashMap<Value, Rc<RefCell<Value>>>),
 }
+
+impl Hash for Value {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Value::Nul => (),
+            Value::Str(v) => v.hash(state),
+            Value::Int(v) => v.hash(state),
+            Value::Bool(v) => v.hash(state),
+            Value::Abool(v) => v.to_string().hash(state),
+            Value::Functio(_) => todo!(),
+            Value::Cart(_) => self.to_string().hash(state),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Nul, Value::Nul) => true,
+            (Value::Str(left), Value::Str(right)) => left == right,
+            (Value::Int(left), Value::Int(right)) => left == right,
+            (Value::Bool(left), Value::Bool(right)) => left == right,
+            (Value::Abool(left), Value::Abool(right)) => left == right,
+            (Value::Functio(left), Value::Functio(right)) => left == right,
+            (Value::Cart(_left), Value::Cart(_right)) => {
+                todo!()
+            }
+            (_, _) => false,
+            // TODO: do more coercions!
+        }
+    }
+}
+
+impl Eq for Value {}
 
 impl Value {
     /// Write an AbleScript value to a Brainfuck input stream by
@@ -66,10 +101,10 @@ impl Value {
     }
 
     /// Coerce a value to an integer.
-    pub fn into_i32(self) -> i32 {
+    pub fn into_i32(&self) -> i32 {
         match self {
-            Value::Abool(a) => a as _,
-            Value::Bool(b) => b as _,
+            Value::Abool(a) => *a as _,
+            Value::Bool(b) => *b as _,
             Value::Functio(func) => match func {
                 Functio::BfFunctio {
                     instructions,
@@ -77,22 +112,46 @@ impl Value {
                 } => (instructions.len() + tape_len) as _,
                 Functio::AbleFunctio { params, body } => (params.len() + body.len()) as _,
             },
-            Value::Int(i) => i,
+            Value::Int(i) => *i,
             Value::Nul => consts::ANSWER,
             Value::Str(text) => text.parse().unwrap_or(consts::ANSWER),
+            Value::Cart(c) => c.len() as _,
         }
     }
 
     /// Coerce a Value to a boolean. The conversion cannot fail.
-    pub fn into_bool(self) -> bool {
+    pub fn into_bool(&self) -> bool {
         match self {
-            Value::Abool(b) => b.into(),
-            Value::Bool(b) => b,
+            Value::Abool(b) => b.clone().into(),
+            Value::Bool(b) => *b,
             Value::Functio(_) => true,
-            Value::Int(x) => x != 0,
+            Value::Int(x) => *x != 0,
             Value::Nul => true,
             Value::Str(s) => !s.is_empty(),
+            Value::Cart(c) => !c.is_empty(),
         }
+    }
+
+    /// Index a value with another value, as in the "a[b]" syntax.
+    pub fn index(&self, index: &Value) -> Rc<RefCell<Value>> {
+        Rc::new(RefCell::new(match self {
+            Value::Nul => Value::Nul,
+            Value::Str(s) => Value::Int(s.as_bytes()[index.into_i32() as usize] as i32),
+            Value::Int(i) => Value::Int(
+                (format!("{}", i).as_bytes()[index.into_i32() as usize] - ('0' as u8)) as i32,
+            ),
+            Value::Bool(b) => Value::Int(
+                format!("{}", b)
+                    .chars()
+                    .nth(index.into_i32() as usize)
+                    .unwrap_or_else(|| '?') as i32,
+            ),
+            Value::Abool(b) => Value::Int(*b as i32),
+            Value::Functio(_) => Value::Int(42),
+            Value::Cart(c) => {
+                return (c.get(index).cloned()).unwrap_or_else(|| Rc::new(RefCell::new(Value::Nul)))
+            }
+        }))
     }
 }
 
@@ -128,6 +187,15 @@ impl Display for Value {
                     )
                 }
             },
+            Value::Cart(c) => {
+                write!(f, "[")?;
+
+                for (key, value) in c {
+                    write!(f, "{} <= {},", value.borrow(), key)?;
+                }
+
+                write!(f, "]")
+            }
         }
     }
 }
