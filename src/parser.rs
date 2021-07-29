@@ -676,4 +676,83 @@ mod tests {
         let ast = Parser::new(code).init().unwrap();
         assert_eq!(ast, expected);
     }
+
+    #[test]
+    fn cart_construction() {
+        let code = r#"["able" <= 1, "script" <= 3 - 1] print;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Print(Expr {
+                kind: ExprKind::Cart(vec![
+                    (
+                        Expr {
+                            kind: ExprKind::Literal(Value::Str("able".to_string())),
+                            span: 1..7,
+                        },
+                        Expr {
+                            kind: ExprKind::Literal(Value::Int(1)),
+                            span: 11..12,
+                        },
+                    ),
+                    (
+                        Expr {
+                            kind: ExprKind::Literal(Value::Str("script".to_string())),
+                            span: 14..22,
+                        },
+                        Expr {
+                            kind: ExprKind::BinOp {
+                                kind: BinOpKind::Subtract,
+                                lhs: Box::new(Expr {
+                                    kind: ExprKind::Literal(Value::Int(3)),
+                                    span: 26..27,
+                                }),
+                                rhs: Box::new(Expr {
+                                    kind: ExprKind::Literal(Value::Int(1)),
+                                    span: 30..31,
+                                }),
+                            },
+                            span: 26..31,
+                        },
+                    ),
+                ]),
+                span: 0..32,
+            }),
+            span: 0..39,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn cart_index() {
+        let code = r#"["able" <= "ablecorp"]["ablecorp"] print;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Print(Expr {
+                kind: ExprKind::Index {
+                    cart: Box::new(Expr {
+                        kind: ExprKind::Cart(vec![(
+                            Expr {
+                                kind: ExprKind::Literal(Value::Str("able".to_string())),
+                                span: 1..7,
+                            },
+                            Expr {
+                                kind: ExprKind::Literal(Value::Str("ablecorp".to_string())),
+                                span: 11..21,
+                            },
+                        )]),
+                        span: 0..22,
+                    }),
+                    index: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Str("ablecorp".to_owned())),
+                        span: 23..33,
+                    }),
+                },
+                span: 0..34,
+            }),
+            span: 0..41,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
 }
