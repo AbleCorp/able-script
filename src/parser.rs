@@ -234,6 +234,43 @@ impl<'source> Parser<'source> {
     /// Flow for creating carts
     fn cart_flow(&mut self) -> Result<ExprKind, Error> {
         let mut cart = vec![];
+        let mut buf = None;
+
+        match self.checked_next()? {
+            Token::RightBracket => return Ok(ExprKind::Cart(cart)),
+            t => buf = Some(self.parse_expr(t, &mut buf)?),
+        }
+
+        'cart: loop {
+            let value = loop {
+                match self.checked_next()? {
+                    Token::Arrow => break buf.take(),
+                    t => buf = Some(self.parse_expr(t, &mut buf)?),
+                }
+            }
+            .ok_or_else(|| {
+                Error::new(ErrorKind::UnexpectedToken(Token::Arrow), self.lexer.span())
+            })?;
+
+            let key = loop {
+                match self.checked_next()? {
+                    Token::RightBracket => {
+                        cart.push((
+                            value,
+                            buf.take()
+                                .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?,
+                        ));
+
+                        break 'cart;
+                    }
+                    Token::Comma => break buf.take(),
+                    t => buf = Some(self.parse_expr(t, &mut buf)?),
+                }
+            }
+            .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?;
+
+            cart.push((value, key));
+        }
 
         Ok(ExprKind::Cart(cart))
     }
