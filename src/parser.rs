@@ -233,7 +233,9 @@ impl<'source> Parser<'source> {
 
     /// Flow for creating carts
     fn cart_flow(&mut self) -> Result<ExprKind, Error> {
-        todo!("cart construction")
+        let mut cart = vec![];
+
+        Ok(ExprKind::Cart(cart))
     }
 
     /// Flow for operators
