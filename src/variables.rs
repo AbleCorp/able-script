@@ -96,12 +96,12 @@ impl Value {
     /// any IO errors will cause a panic.
     pub fn bf_write(&self, stream: &mut impl Write) {
         stream
-            .write_all(&[self.clone().into_i32() as u8])
+            .write_all(&[self.clone().to_i32() as u8])
             .expect("Failed to write to Brainfuck input");
     }
 
     /// Coerce a value to an integer.
-    pub fn into_i32(&self) -> i32 {
+    pub fn to_i32(&self) -> i32 {
         match self {
             Value::Abool(a) => *a as _,
             Value::Bool(b) => *b as _,
@@ -120,7 +120,7 @@ impl Value {
     }
 
     /// Coerce a Value to a boolean. The conversion cannot fail.
-    pub fn into_bool(&self) -> bool {
+    pub fn to_bool(&self) -> bool {
         match self {
             Value::Abool(b) => (*b).into(),
             Value::Bool(b) => *b,
@@ -136,14 +136,14 @@ impl Value {
     pub fn index(&self, index: &Value) -> Rc<RefCell<Value>> {
         Rc::new(RefCell::new(match self {
             Value::Nul => Value::Nul,
-            Value::Str(s) => Value::Int(s.as_bytes()[index.into_i32() as usize] as i32),
+            Value::Str(s) => Value::Int(s.as_bytes()[index.to_i32() as usize] as i32),
             Value::Int(i) => Value::Int(
-                (format!("{}", i).as_bytes()[index.into_i32() as usize] - b'0') as i32,
+                (format!("{}", i).as_bytes()[index.to_i32() as usize] - b'0') as i32,
             ),
             Value::Bool(b) => Value::Int(
                 format!("{}", b)
                     .chars()
-                    .nth(index.into_i32() as usize)
+                    .nth(index.to_i32() as usize)
                     .unwrap_or('?') as i32,
             ),
             Value::Abool(b) => Value::Int(*b as i32),

@@ -143,8 +143,8 @@ impl ExecEnv {
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
-                        let lhs = lhs.into_i32();
-                        let rhs = rhs.into_i32();
+                        let lhs = lhs.to_i32();
+                        let rhs = rhs.to_i32();
 
                         let res = match kind {
                             Add => lhs.checked_add(rhs),
@@ -159,8 +159,8 @@ impl ExecEnv {
 
                     // Numeric comparisons.
                     Less | Greater => {
-                        let lhs = lhs.into_i32();
-                        let rhs = rhs.into_i32();
+                        let lhs = lhs.to_i32();
+                        let rhs = rhs.to_i32();
 
                         let res = match kind {
                             Less => lhs < rhs,
@@ -182,8 +182,8 @@ impl ExecEnv {
 
                     // Logical connectives.
                     And | Or => {
-                        let lhs = lhs.into_bool();
-                        let rhs = rhs.into_bool();
+                        let lhs = lhs.to_bool();
+                        let rhs = rhs.to_bool();
                         let res = match kind {
                             And => lhs && rhs,
                             Or => lhs || rhs,
@@ -193,7 +193,7 @@ impl ExecEnv {
                     }
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
+            Not(expr) => Bool(!self.eval_expr(expr)?.to_bool()),
             Literal(value) => value.clone(),
             ExprKind::Cart(members) => Value::Cart(
                 members
@@ -257,13 +257,13 @@ impl ExecEnv {
                         instructions: code.to_owned(),
                         tape_len: tape_len
                             .as_ref()
-                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.into_i32() as usize))
+                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.to_i32() as usize))
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
                     }),
                 );
             }
             StmtKind::If { cond, body } => {
-                if self.eval_expr(cond)?.into_bool() {
+                if self.eval_expr(cond)?.to_bool() {
                     return self.eval_stmts_hs(&body.block, true);
                 }
             }
