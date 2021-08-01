@@ -345,13 +345,12 @@ impl<'source> Parser<'source> {
 
                 // Functio call
                 Token::LeftParen => {
-                    if let Some(Expr {
-                        kind: ExprKind::Variable(iden),
-                        span,
-                    }) = buf
-                    {
-                        break self.functio_call_flow(Iden::new(iden, span))?;
-                    }
+                    break self.functio_call_flow(buf.take().ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UnexpectedToken(Token::LeftParen),
+                            self.lexer.span(),
+                        )
+                    })?)?;
                 }
 
                 // Variable Assignment
@@ -480,7 +479,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Parse functio call flow
-    fn functio_call_flow(&mut self, iden: Iden) -> Result<StmtKind, Error> {
+    fn functio_call_flow(&mut self, expr: Expr) -> Result<StmtKind, Error> {
         let mut args = vec![];
         let mut buf = None;
         loop {
@@ -509,7 +508,7 @@ impl<'source> Parser<'source> {
         }
 
         self.require(Token::Semicolon)?;
-        Ok(StmtKind::Call { iden, args })
+        Ok(StmtKind::Call { expr, args })
     }
 
     /// Parse variable declaration
