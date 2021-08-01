@@ -69,7 +69,7 @@ pub enum StmtKind {
         code: Vec<u8>,
     },
     Call {
-        iden: Iden,
+        expr: Expr,
         args: Vec<Expr>,
     },
     Print(Expr),

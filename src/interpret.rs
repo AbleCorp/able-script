@@ -267,8 +267,8 @@ impl ExecEnv {
                     return self.eval_stmts_hs(&body.block, true);
                 }
             }
-            StmtKind::Call { iden, args } => {
-                let func = self.get_var(iden)?;
+            StmtKind::Call { expr, args } => {
+                let func = self.eval_expr(expr)?;
 
                 if let Value::Functio(func) = func {
                     self.fn_call(func, args, &stmt.span)?;
