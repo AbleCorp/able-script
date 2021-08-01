@@ -20,7 +20,7 @@ pub fn repl(ast_print: bool) {
                     println!("bye");
                     break;
                 }
-                
+
                 let mut parser = Parser::new(line);
                 let value = parser.init().and_then(|ast| {
                     if ast_print {

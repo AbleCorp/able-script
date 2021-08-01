@@ -137,9 +137,9 @@ impl Value {
         Rc::new(RefCell::new(match self {
             Value::Nul => Value::Nul,
             Value::Str(s) => Value::Int(s.as_bytes()[index.to_i32() as usize] as i32),
-            Value::Int(i) => Value::Int(
-                (format!("{}", i).as_bytes()[index.to_i32() as usize] - b'0') as i32,
-            ),
+            Value::Int(i) => {
+                Value::Int((format!("{}", i).as_bytes()[index.to_i32() as usize] - b'0') as i32)
+            }
             Value::Bool(b) => Value::Int(
                 format!("{}", b)
                     .chars()
