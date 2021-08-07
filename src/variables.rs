@@ -1,4 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, io::Write, rc::Rc};
+use std::{
+    cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, io::Write, mem::discriminant,
+    rc::Rc,
+};
 
 use rand::Rng;
 
@@ -31,7 +34,7 @@ impl From<Abool> for bool {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub enum Functio {
     BfFunctio {
         instructions: Vec<u8>,
@@ -56,13 +59,14 @@ pub enum Value {
 
 impl Hash for Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        discriminant(self).hash(state);
         match self {
             Value::Nul => (),
             Value::Str(v) => v.hash(state),
             Value::Int(v) => v.hash(state),
             Value::Bool(v) => v.hash(state),
             Value::Abool(v) => v.to_string().hash(state),
-            Value::Functio(_) => todo!(),
+            Value::Functio(statements) => statements.hash(state),
             Value::Cart(_) => self.to_string().hash(state),
         }
     }
@@ -77,9 +81,7 @@ impl PartialEq for Value {
             (Value::Bool(left), Value::Bool(right)) => left == right,
             (Value::Abool(left), Value::Abool(right)) => left == right,
             (Value::Functio(left), Value::Functio(right)) => left == right,
-            (Value::Cart(_left), Value::Cart(_right)) => {
-                todo!()
-            }
+            (Value::Cart(_), Value::Cart(_)) => self.to_string() == other.to_string(),
             (_, _) => false,
             // TODO: do more coercions!
         }
