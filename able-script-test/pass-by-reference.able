@@ -2,9 +2,9 @@ owo Pass-by-reference test
 
 owo Swap two variables.
 functio swap(left, right) {
-    var tmp = left;
-    left = right;
-    right = tmp;
+   var tmp = left;
+   left = right;
+   right = tmp;
 }
 
 var foo = "hello";
@@ -13,11 +13,11 @@ var bar = "world";
 swap(foo, bar);
 
 if (foo != "world") {
-    "FAILED" print;
-    "foo should be 'world', is actually:" print;
-    foo print;
+   "FAILED" print;
+   "foo should be 'world', is actually:" print;
+   foo print;
 }
 
 if (foo == "world") {
-    "OK" print;
+   "OK" print;
 }
