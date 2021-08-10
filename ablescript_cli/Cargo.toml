@@ -1,0 +1,18 @@
+[package]
+name = "ablescript_cli"
+version = "0.2.0"
+authors = ["able <abl3theabove@gmail.com>"]
+edition = "2018"
+
+description = "The best programming language"
+license-file = "LICENSE"
+documentation = "https://ablecorp.us/able-script-the-book/"
+repository = "https://github.com/AbleCorp/able-script"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ablescript = { path = "../ablescript" }
+
+clap = "2.33"
+rustyline = "8.0.0"
