@@ -1,6 +1,7 @@
 use rustyline::Editor;
 
-use crate::{interpret::ExecEnv, parser::Parser};
+use ablescript::interpret::ExecEnv;
+use ablescript::parser::Parser;
 
 pub fn repl(ast_print: bool) {
     let mut rl = Editor::<()>::new();

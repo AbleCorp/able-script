@@ -1,0 +1,16 @@
+[package]
+name = "ablescript"
+version = "0.2.0"
+authors = ["able <abl3theabove@gmail.com>"]
+edition = "2018"
+
+description = "The best programming language"
+license-file = "LICENSE"
+documentation = "https://ablecorp.us/able-script-the-book/"
+repository = "https://github.com/AbleCorp/able-script"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+logos = "0.12"
+rand = "0.8"
