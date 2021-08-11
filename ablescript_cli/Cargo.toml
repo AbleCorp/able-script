@@ -5,7 +5,7 @@ authors = ["able <abl3theabove@gmail.com>"]
 edition = "2018"
 
 description = "The best programming language"
-license-file = "LICENSE"
+license = "MIT"
 documentation = "https://ablecorp.us/able-script-the-book/"
 repository = "https://github.com/AbleCorp/able-script"
 
