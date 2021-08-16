@@ -1,6 +1,6 @@
 use std::{
-    cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, io::Write, mem::discriminant,
-    rc::Rc,
+    cell::RefCell, collections::HashMap, convert::TryFrom, fmt::Display, hash::Hash, io::Write,
+    mem::discriminant, rc::Rc,
 };
 
 use rand::Rng;
@@ -138,15 +138,26 @@ impl Value {
     pub fn index(&self, index: &Value) -> Rc<RefCell<Value>> {
         Rc::new(RefCell::new(match self {
             Value::Nul => Value::Nul,
-            Value::Str(s) => Value::Int(s.as_bytes()[index.to_i32() as usize] as i32),
-            Value::Int(i) => {
-                Value::Int((format!("{}", i).as_bytes()[index.to_i32() as usize] - b'0') as i32)
-            }
+            Value::Str(s) => Value::Int(
+                usize::try_from(index.to_i32() - 1)
+                    .ok()
+                    .and_then(|idx| s.as_bytes().get(idx).cloned())
+                    .map(|value| value as i32)
+                    .unwrap_or(0),
+            ),
+            Value::Int(i) => Value::Int(
+                usize::try_from(index.to_i32() - 1)
+                    .ok()
+                    .and_then(|idx| format!("{}", i).as_bytes().get(idx).cloned())
+                    .map(|value| value as i32)
+                    .unwrap_or(0),
+            ),
             Value::Bool(b) => Value::Int(
-                format!("{}", b)
-                    .chars()
-                    .nth(index.to_i32() as usize)
-                    .unwrap_or('?') as i32,
+                usize::try_from(index.to_i32() - 1)
+                    .ok()
+                    .and_then(|idx| format!("{}", b).as_bytes().get(idx).cloned())
+                    .map(|value| value as i32)
+                    .unwrap_or(0),
             ),
             Value::Abool(b) => Value::Int(*b as i32),
             Value::Functio(_) => Value::Int(42),
