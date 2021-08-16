@@ -10,10 +10,8 @@ pub struct Error {
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    SyntaxError(String),
     UnexpectedEof,
     UnexpectedToken(Token),
-    InvalidIdentifier,
     UnknownVariable(String),
     MeloVariable(String),
     TopLevelBreak,
@@ -49,10 +47,8 @@ impl std::error::Error for Error {}
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorKind::SyntaxError(desc) => write!(f, "syntax error: {}", desc),
             ErrorKind::UnexpectedEof => write!(f, "unexpected end of file"),
             ErrorKind::UnexpectedToken(token) => write!(f, "unexpected token {:?}", token),
-            ErrorKind::InvalidIdentifier => write!(f, "invalid identifier"),
             ErrorKind::UnknownVariable(name) => write!(f, "unknown identifier \"{}\"", name),
             ErrorKind::MeloVariable(name) => write!(f, "banned variable \"{}\"", name),
             ErrorKind::TopLevelBreak => write!(f, "can only `break` out of a loop"),

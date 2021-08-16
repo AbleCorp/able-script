@@ -98,6 +98,7 @@ impl<'source> Parser<'source> {
             | Token::Integer(_)
             | Token::Abool(_)
             | Token::Bool(_)
+            | Token::LeftBracket
             | Token::LeftParen => Ok(Stmt::new(
                 self.value_flow(token)?,
                 start..self.lexer.span().end,
@@ -188,6 +189,17 @@ impl<'source> Parser<'source> {
                 start..self.lexer.span().end,
             )),
 
+            Token::LeftBracket => match buf.take() {
+                Some(buf) => Ok(Expr::new(
+                    ExprKind::Index {
+                        cart: Box::new(buf),
+                        index: Box::new(self.expr_flow(Token::RightBracket)?),
+                    },
+                    start..self.lexer.span().end,
+                )),
+                None => Ok(Expr::new(self.cart_flow()?, start..self.lexer.span().end)),
+            },
+
             // Operations
             Token::Plus
             | Token::Minus
@@ -213,9 +225,56 @@ impl<'source> Parser<'source> {
                 },
                 start..self.lexer.span().end,
             )),
+
             Token::LeftParen => self.expr_flow(Token::RightParen),
             t => Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
         }
+    }
+
+    /// Flow for creating carts
+    fn cart_flow(&mut self) -> Result<ExprKind, Error> {
+        let mut cart = vec![];
+        let mut buf = None;
+
+        match self.checked_next()? {
+            Token::RightBracket => (),
+            t => {
+                buf = Some(self.parse_expr(t, &mut buf)?);
+                'cart: loop {
+                    let value = loop {
+                        match self.checked_next()? {
+                            Token::Arrow => break buf.take(),
+                            t => buf = Some(self.parse_expr(t, &mut buf)?),
+                        }
+                    }
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::UnexpectedToken(Token::Arrow), self.lexer.span())
+                    })?;
+
+                    let key = loop {
+                        match self.checked_next()? {
+                            Token::RightBracket => {
+                                cart.push((
+                                    value,
+                                    buf.take().ok_or_else(|| {
+                                        Error::unexpected_eof(self.lexer.span().start)
+                                    })?,
+                                ));
+
+                                break 'cart;
+                            }
+                            Token::Comma => break buf.take(),
+                            t => buf = Some(self.parse_expr(t, &mut buf)?),
+                        }
+                    }
+                    .ok_or_else(|| Error::unexpected_eof(self.lexer.span().start))?;
+
+                    cart.push((value, key));
+                }
+            }
+        }
+
+        Ok(ExprKind::Cart(cart))
     }
 
     /// Flow for operators
@@ -286,13 +345,12 @@ impl<'source> Parser<'source> {
 
                 // Functio call
                 Token::LeftParen => {
-                    if let Some(Expr {
-                        kind: ExprKind::Variable(iden),
-                        span,
-                    }) = buf
-                    {
-                        break self.functio_call_flow(Iden::new(iden, span))?;
-                    }
+                    break self.functio_call_flow(buf.take().ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::UnexpectedToken(Token::LeftParen),
+                            self.lexer.span(),
+                        )
+                    })?)?;
                 }
 
                 // Variable Assignment
@@ -421,7 +479,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Parse functio call flow
-    fn functio_call_flow(&mut self, iden: Iden) -> Result<StmtKind, Error> {
+    fn functio_call_flow(&mut self, expr: Expr) -> Result<StmtKind, Error> {
         let mut args = vec![];
         let mut buf = None;
         loop {
@@ -450,7 +508,7 @@ impl<'source> Parser<'source> {
         }
 
         self.require(Token::Semicolon)?;
-        Ok(StmtKind::Call { iden, args })
+        Ok(StmtKind::Call { expr, args })
     }
 
     /// Parse variable declaration
@@ -612,6 +670,85 @@ mod tests {
                 }),
             },
             span: 9..34,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn cart_construction() {
+        let code = r#"["able" <= 1, "script" <= 3 - 1] print;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Print(Expr {
+                kind: ExprKind::Cart(vec![
+                    (
+                        Expr {
+                            kind: ExprKind::Literal(Value::Str("able".to_string())),
+                            span: 1..7,
+                        },
+                        Expr {
+                            kind: ExprKind::Literal(Value::Int(1)),
+                            span: 11..12,
+                        },
+                    ),
+                    (
+                        Expr {
+                            kind: ExprKind::Literal(Value::Str("script".to_string())),
+                            span: 14..22,
+                        },
+                        Expr {
+                            kind: ExprKind::BinOp {
+                                kind: BinOpKind::Subtract,
+                                lhs: Box::new(Expr {
+                                    kind: ExprKind::Literal(Value::Int(3)),
+                                    span: 26..27,
+                                }),
+                                rhs: Box::new(Expr {
+                                    kind: ExprKind::Literal(Value::Int(1)),
+                                    span: 30..31,
+                                }),
+                            },
+                            span: 26..31,
+                        },
+                    ),
+                ]),
+                span: 0..32,
+            }),
+            span: 0..39,
+        }];
+
+        let ast = Parser::new(code).init().unwrap();
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn cart_index() {
+        let code = r#"["able" <= "ablecorp"]["ablecorp"] print;"#;
+        let expected = &[Stmt {
+            kind: StmtKind::Print(Expr {
+                kind: ExprKind::Index {
+                    cart: Box::new(Expr {
+                        kind: ExprKind::Cart(vec![(
+                            Expr {
+                                kind: ExprKind::Literal(Value::Str("able".to_string())),
+                                span: 1..7,
+                            },
+                            Expr {
+                                kind: ExprKind::Literal(Value::Str("ablecorp".to_string())),
+                                span: 11..21,
+                            },
+                        )]),
+                        span: 0..22,
+                    }),
+                    index: Box::new(Expr {
+                        kind: ExprKind::Literal(Value::Str("ablecorp".to_owned())),
+                        span: 23..33,
+                    }),
+                },
+                span: 0..34,
+            }),
+            span: 0..41,
         }];
 
         let ast = Parser::new(code).init().unwrap();

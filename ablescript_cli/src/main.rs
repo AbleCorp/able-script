@@ -1,22 +1,11 @@
 #![forbid(unsafe_code, clippy::unwrap_used)]
-
-mod ast;
-mod base_55;
-mod brian;
-mod consts;
-mod error;
-mod interpret;
-mod lexer;
-mod parser;
 mod repl;
-mod variables;
 
 use std::process::exit;
 
+use ablescript::interpret::ExecEnv;
+use ablescript::parser::Parser;
 use clap::{App, Arg};
-use interpret::ExecEnv;
-use logos::Source;
-use parser::Parser;
 
 fn main() {
     // variables::test(); // NOTE(Able): Add this as a test case
@@ -64,7 +53,7 @@ fn main() {
                     "Error `{:?}` occurred at span: {:?} = `{:?}`",
                     e.kind,
                     e.span.clone(),
-                    source.slice(e.span)
+                    &source[e.span]
                 );
             }
         }

@@ -1,6 +1,7 @@
 use rustyline::Editor;
 
-use crate::{interpret::ExecEnv, parser::Parser};
+use ablescript::interpret::ExecEnv;
+use ablescript::parser::Parser;
 
 pub fn repl(ast_print: bool) {
     let mut rl = Editor::<()>::new();
@@ -13,13 +14,15 @@ pub fn repl(ast_print: bool) {
                 // end of the string if stdin is connected to a file
                 // or unsupported terminal; this can interfere with
                 // error printing.
+                rl.add_history_entry(&line);
                 let line = line.trim_end();
 
                 if line == "exit" {
                     println!("bye");
                     break;
                 }
-                let mut parser = Parser::new(&line);
+
+                let mut parser = Parser::new(line);
                 let value = parser.init().and_then(|ast| {
                     if ast_print {
                         println!("{:#?}", &ast);

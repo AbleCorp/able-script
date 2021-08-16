@@ -8,11 +8,13 @@
 //! just plain subroutines and they do not return any value,
 //! so their calls are statements.
 
+use std::hash::Hash;
+
 use crate::variables::Value;
 
 type Span = std::ops::Range<usize>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Iden {
     pub iden: String,
     pub span: Span,
@@ -24,19 +26,43 @@ impl Iden {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl PartialEq for Iden {
+    fn eq(&self, other: &Self) -> bool {
+        self.iden == other.iden
+    }
+}
+
+impl Hash for Iden {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.iden.hash(state)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub struct Block {
     pub block: Vec<Stmt>,
 }
 
 /// A syntactic unit expressing an effect.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl PartialEq for Stmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
+impl Hash for Stmt {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.kind.hash(state)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub enum StmtKind {
     // Control flow
     If {
@@ -69,7 +95,7 @@ pub enum StmtKind {
         code: Vec<u8>,
     },
     Call {
-        iden: Iden,
+        expr: Expr,
         args: Vec<Expr>,
     },
     Print(Expr),
@@ -87,13 +113,25 @@ impl Stmt {
 
 /// Expression is parse unit which do not cause any effect,
 /// like math and logical operations or values.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
+impl Hash for Expr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.kind.hash(state)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub enum ExprKind {
     BinOp {
         lhs: Box<Expr>,
@@ -102,6 +140,11 @@ pub enum ExprKind {
     },
     Not(Box<Expr>),
     Literal(Value),
+    Cart(Vec<(Expr, Expr)>),
+    Index {
+        cart: Box<Expr>,
+        index: Box<Expr>,
+    },
     Variable(String),
 }
 
@@ -111,7 +154,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub enum BinOpKind {
     Add,
     Subtract,

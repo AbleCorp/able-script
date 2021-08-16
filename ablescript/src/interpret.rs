@@ -138,13 +138,13 @@ impl ExecEnv {
 
         Ok(match &expr.kind {
             BinOp { lhs, rhs, kind } => {
-                let lhs = self.eval_expr(&lhs)?;
-                let rhs = self.eval_expr(&rhs)?;
+                let lhs = self.eval_expr(lhs)?;
+                let rhs = self.eval_expr(rhs)?;
                 match kind {
                     // Arithmetic operators.
                     Add | Subtract | Multiply | Divide => {
-                        let lhs = lhs.into_i32();
-                        let rhs = rhs.into_i32();
+                        let lhs = lhs.to_i32();
+                        let rhs = rhs.to_i32();
 
                         let res = match kind {
                             Add => lhs.checked_add(rhs),
@@ -159,8 +159,8 @@ impl ExecEnv {
 
                     // Numeric comparisons.
                     Less | Greater => {
-                        let lhs = lhs.into_i32();
-                        let rhs = rhs.into_i32();
+                        let lhs = lhs.to_i32();
+                        let rhs = rhs.to_i32();
 
                         let res = match kind {
                             Less => lhs < rhs,
@@ -182,8 +182,8 @@ impl ExecEnv {
 
                     // Logical connectives.
                     And | Or => {
-                        let lhs = lhs.into_bool();
-                        let rhs = rhs.into_bool();
+                        let lhs = lhs.to_bool();
+                        let rhs = rhs.to_bool();
                         let res = match kind {
                             And => lhs && rhs,
                             Or => lhs || rhs,
@@ -193,8 +193,26 @@ impl ExecEnv {
                     }
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(&expr)?.into_bool()),
+            Not(expr) => Bool(!self.eval_expr(expr)?.to_bool()),
             Literal(value) => value.clone(),
+            ExprKind::Cart(members) => Value::Cart(
+                members
+                    .iter()
+                    .map(|(value, key)| {
+                        self.eval_expr(value).and_then(|value| {
+                            self.eval_expr(key)
+                                .map(|key| (key, Rc::new(RefCell::new(value))))
+                        })
+                    })
+                    .collect::<Result<HashMap<_, _>, _>>()?,
+            ),
+            Index { cart, index } => {
+                let cart = self.eval_expr(cart)?;
+                let index = self.eval_expr(index)?;
+
+                // TODO: this probably shouldn't be cloned
+                cart.index(&index).borrow().clone()
+            }
 
             // TODO: not too happy with constructing an artificial
             // Iden here.
@@ -239,21 +257,21 @@ impl ExecEnv {
                         instructions: code.to_owned(),
                         tape_len: tape_len
                             .as_ref()
-                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.into_i32() as usize))
+                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.to_i32() as usize))
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
                     }),
                 );
             }
             StmtKind::If { cond, body } => {
-                if self.eval_expr(cond)?.into_bool() {
+                if self.eval_expr(cond)?.to_bool() {
                     return self.eval_stmts_hs(&body.block, true);
                 }
             }
-            StmtKind::Call { iden, args } => {
-                let func = self.get_var(&iden)?;
+            StmtKind::Call { expr, args } => {
+                let func = self.eval_expr(expr)?;
 
                 if let Value::Functio(func) = func {
-                    self.fn_call(func, &args, &stmt.span)?;
+                    self.fn_call(func, args, &stmt.span)?;
                 } else {
                     // Fail silently for now.
                 }
@@ -268,7 +286,7 @@ impl ExecEnv {
             },
             StmtKind::Assign { iden, value } => {
                 let value = self.eval_expr(value)?;
-                self.get_var_mut(&iden)?.value.replace(value);
+                self.get_var_mut(iden)?.value.replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
@@ -277,7 +295,7 @@ impl ExecEnv {
                 return Ok(HaltStatus::Hopback(stmt.span.clone()));
             }
             StmtKind::Melo(iden) => {
-                self.get_var_mut(&iden)?.melo = true;
+                self.get_var_mut(iden)?.melo = true;
             }
             StmtKind::Rlyeh => {
                 // Maybe print a creepy error message or something
@@ -296,7 +314,7 @@ impl ExecEnv {
                     value += self.get_bit()? as i32;
                 }
 
-                self.get_var_mut(&iden)?.value.replace(Value::Int(value));
+                self.get_var_mut(iden)?.value.replace(Value::Int(value));
             }
         }
 
