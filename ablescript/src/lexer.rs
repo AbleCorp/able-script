@@ -146,7 +146,7 @@ pub enum Token {
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
     Identifier(String),
 
-    #[regex(r"owo.*")]
+    #[regex(r"owo .*")]
     Comment,
 
     #[regex("nul")]
