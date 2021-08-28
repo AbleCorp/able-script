@@ -98,7 +98,7 @@ impl Value {
                     tape_len,
                 } => (instructions.len() + tape_len) as _,
                 Functio::AbleFunctio { params, body } => (params.len() + body.len()) as _,
-                Functio::Eval(s) => s.parse().unwrap_or(consts::ANSWER),
+                Functio::Eval(s) => s.len() as _,
             },
             Value::Int(i) => i,
             Value::Nul => consts::ANSWER,
