@@ -93,11 +93,17 @@ impl Value {
             Value::Abool(a) => a as _,
             Value::Bool(b) => b as _,
             Value::Functio(func) => match func {
+                // Compares lengths of functions:
+                // BfFunctio - Sum of lengths of instructions and length of tape
+                // AbleFunctio - Sum of argument count and body length
+                // Eval - Length of input code
                 Functio::BfFunctio {
                     instructions,
                     tape_len,
                 } => (instructions.len() + tape_len) as _,
-                Functio::AbleFunctio { params, body } => (params.len() + format!("{:?}", body).len()) as _,
+                Functio::AbleFunctio { params, body } => {
+                    (params.len() + format!("{:?}", body).len()) as _
+                }
                 Functio::Eval(s) => s.len() as _,
             },
             Value::Int(i) => i,
