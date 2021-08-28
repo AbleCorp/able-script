@@ -7,7 +7,7 @@ use rand::Rng;
 
 use crate::{ast::Stmt, consts};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Abool {
     Never = -1,
     Sometimes = 0,
@@ -357,12 +357,37 @@ impl PartialOrd for Value {
                     None
                 }
             }
-            Value::Str(_) => todo!(),
-            Value::Int(_) => todo!(),
-            Value::Bool(_) => todo!(),
-            Value::Abool(_) => todo!(),
-            Value::Functio(_) => todo!(),
-            Value::Cart(_) => todo!(),
+            Value::Str(s) => Some(s.cmp(&other.to_string())),
+            Value::Int(i) => Some(i.cmp(&other.into_i32())),
+            Value::Bool(b) => Some(b.cmp(&other.into_bool())),
+            Value::Abool(a) => a.partial_cmp(&other.into_abool()),
+            Value::Functio(f) => {
+                // Compares lengths of functions:
+                // BfFunctio - Sum of lengths of instructions and length of tape
+                // AbleFunctio - Sum of argument count and body length
+                // Eval - Length of input code
+
+                let selfl = match f {
+                    Functio::BfFunctio {
+                        instructions,
+                        tape_len,
+                    } => instructions.len() + tape_len,
+                    Functio::AbleFunctio { params, body } => params.len() + body.len(),
+                    Functio::Eval(s) => s.len(),
+                };
+
+                let otherl = match other.into_functio() {
+                    Functio::BfFunctio {
+                        instructions,
+                        tape_len,
+                    } => instructions.len() + tape_len,
+                    Functio::AbleFunctio { params, body } => params.len() + body.len(),
+                    Functio::Eval(s) => s.len(),
+                };
+
+                Some(selfl.cmp(&otherl))
+            }
+            Value::Cart(c) => Some(c.len().cmp(&other.into_cart().len())),
         }
     }
 }
