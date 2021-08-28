@@ -142,15 +142,15 @@ impl ExecEnv {
                 let rhs = self.eval_expr(rhs)?;
                 match kind {
                     Add => lhs + rhs,
-                    Subtract => todo!(),
-                    Multiply => todo!(),
-                    Divide => todo!(),
+                    Subtract => lhs - rhs,
+                    Multiply => lhs * rhs,
+                    Divide => lhs / rhs,
                     Greater => Value::Bool(lhs > rhs),
                     Less => Value::Bool(lhs < rhs),
                     Equal => Value::Bool(lhs == rhs),
                     NotEqual => Value::Bool(lhs != rhs),
-                    And => todo!(),
-                    Or => todo!(),
+                    And => lhs & rhs,
+                    Or => lhs | rhs,
                 }
             }
             Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
