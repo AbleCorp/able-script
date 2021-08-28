@@ -93,11 +93,16 @@ impl Value {
             Value::Abool(a) => a as _,
             Value::Bool(b) => b as _,
             Value::Functio(func) => match func {
+                // Compares lengths of functions:
+                // BfFunctio - Sum of lengths of instructions and length of tape
+                // AbleFunctio - Sum of argument count and body length
+                // Eval - Length of input code
+
                 Functio::BfFunctio {
                     instructions,
                     tape_len,
                 } => (instructions.len() + tape_len) as _,
-                Functio::AbleFunctio { params, body } => (params.len() + body.len()) as _,
+                Functio::AbleFunctio { params, body } => (params.len() + format!("{:?}", body).len()) as _,
                 Functio::Eval(s) => s.len() as _,
             },
             Value::Int(i) => i,
@@ -361,32 +366,7 @@ impl PartialOrd for Value {
             Value::Int(i) => Some(i.cmp(&other.into_i32())),
             Value::Bool(b) => Some(b.cmp(&other.into_bool())),
             Value::Abool(a) => a.partial_cmp(&other.into_abool()),
-            Value::Functio(f) => {
-                // Compares lengths of functions:
-                // BfFunctio - Sum of lengths of instructions and length of tape
-                // AbleFunctio - Sum of argument count and body length
-                // Eval - Length of input code
-
-                let selfl = match f {
-                    Functio::BfFunctio {
-                        instructions,
-                        tape_len,
-                    } => instructions.len() + tape_len,
-                    Functio::AbleFunctio { params, body } => params.len() + body.len(),
-                    Functio::Eval(s) => s.len(),
-                };
-
-                let otherl = match other.into_functio() {
-                    Functio::BfFunctio {
-                        instructions,
-                        tape_len,
-                    } => instructions.len() + tape_len,
-                    Functio::AbleFunctio { params, body } => params.len() + body.len(),
-                    Functio::Eval(s) => s.len(),
-                };
-
-                Some(selfl.cmp(&otherl))
-            }
+            Value::Functio(_) => self.clone().into_i32().partial_cmp(&other.into_i32()),
             Value::Cart(c) => Some(c.len().cmp(&other.into_cart().len())),
         }
     }

@@ -355,7 +355,10 @@ impl ExecEnv {
                 }
 
                 let stmts = crate::parser::Parser::new(&code).init()?;
-                self.eval_stmts(&stmts)?;
+                self.eval_stmts(&stmts).map_err(|x| Error {
+                    span: span.clone(),
+                    ..x
+                })?;
             }
         }
         Ok(())
