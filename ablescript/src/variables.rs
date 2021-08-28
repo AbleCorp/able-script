@@ -427,9 +427,11 @@ impl Display for Value {
             },
             Value::Cart(c) => {
                 write!(f, "[")?;
+                let mut cart_vec = c.into_iter().collect::<Vec<_>>();
+                cart_vec.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap_or(std::cmp::Ordering::Less));
 
-                for (key, value) in c {
-                    write!(f, "{} <= {},", value.borrow(), key)?;
+                for (key, value) in cart_vec {
+                    write!(f, "{} <= {}, ", value.borrow(), key)?;
                 }
 
                 write!(f, "]")
