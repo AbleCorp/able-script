@@ -272,7 +272,7 @@ impl ops::Add for Value {
         match self {
             Value::Nul => todo!(),
             Value::Str(s) => Value::Str(format!("{}{}", s, rhs.to_string())),
-            Value::Int(i) => Value::Int(i + rhs.into_i32()),
+            Value::Int(i) => Value::Int(i.checked_add(rhs.into_i32()).unwrap_or(consts::ANSWER)),
             Value::Bool(b) => Value::Bool(b ^ rhs.into_bool()),
             Value::Abool(a) => Value::Abool({
                 let rhs = rhs.into_abool();
