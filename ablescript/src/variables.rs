@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell, collections::HashMap, convert::TryFrom, fmt::Display, hash::Hash, io::Write,
-    mem::discriminant, rc::Rc,
+    mem::discriminant, ops, rc::Rc, vec,
 };
 
 use rand::Rng;
@@ -44,7 +44,10 @@ pub enum Functio {
         params: Vec<String>,
         body: Vec<Stmt>,
     },
+    Eval(String),
 }
+
+pub type Cart = HashMap<Value, Rc<RefCell<Value>>>;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -54,7 +57,7 @@ pub enum Value {
     Bool(bool),
     Abool(Abool),
     Functio(Functio),
-    Cart(HashMap<Value, Rc<RefCell<Value>>>),
+    Cart(Cart),
 }
 
 impl Hash for Value {
@@ -72,24 +75,6 @@ impl Hash for Value {
     }
 }
 
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Value::Nul, Value::Nul) => true,
-            (Value::Str(left), Value::Str(right)) => left == right,
-            (Value::Int(left), Value::Int(right)) => left == right,
-            (Value::Bool(left), Value::Bool(right)) => left == right,
-            (Value::Abool(left), Value::Abool(right)) => left == right,
-            (Value::Functio(left), Value::Functio(right)) => left == right,
-            (Value::Cart(_), Value::Cart(_)) => self.to_string() == other.to_string(),
-            (_, _) => false,
-            // TODO: do more coercions!
-        }
-    }
-}
-
-impl Eq for Value {}
-
 impl Value {
     /// Write an AbleScript value to a Brainfuck input stream by
     /// coercing the value to an integer, then truncating that integer
@@ -98,23 +83,24 @@ impl Value {
     /// any IO errors will cause a panic.
     pub fn bf_write(&self, stream: &mut impl Write) {
         stream
-            .write_all(&[self.clone().to_i32() as u8])
+            .write_all(&[self.clone().into_i32() as u8])
             .expect("Failed to write to Brainfuck input");
     }
 
     /// Coerce a value to an integer.
-    pub fn to_i32(&self) -> i32 {
+    pub fn into_i32(self) -> i32 {
         match self {
-            Value::Abool(a) => *a as _,
-            Value::Bool(b) => *b as _,
+            Value::Abool(a) => a as _,
+            Value::Bool(b) => b as _,
             Value::Functio(func) => match func {
                 Functio::BfFunctio {
                     instructions,
                     tape_len,
                 } => (instructions.len() + tape_len) as _,
                 Functio::AbleFunctio { params, body } => (params.len() + body.len()) as _,
+                Functio::Eval(s) => s.parse().unwrap_or(consts::ANSWER),
             },
-            Value::Int(i) => *i,
+            Value::Int(i) => i,
             Value::Nul => consts::ANSWER,
             Value::Str(text) => text.parse().unwrap_or(consts::ANSWER),
             Value::Cart(c) => c.len() as _,
@@ -122,49 +108,262 @@ impl Value {
     }
 
     /// Coerce a Value to a boolean. The conversion cannot fail.
-    pub fn to_bool(&self) -> bool {
+    pub fn into_bool(self) -> bool {
         match self {
-            Value::Abool(b) => (*b).into(),
-            Value::Bool(b) => *b,
+            Value::Abool(b) => b.into(),
+            Value::Bool(b) => b,
             Value::Functio(_) => true,
-            Value::Int(x) => *x != 0,
-            Value::Nul => true,
-            Value::Str(s) => !s.is_empty(),
+            Value::Int(x) => x != 0,
+            Value::Nul => false,
+            Value::Str(s) => match s.to_lowercase().as_str() {
+                "false" | "no" | "🇳🇴" => false,
+                "true" | "yes" => true,
+                s => !s.is_empty(),
+            },
             Value::Cart(c) => !c.is_empty(),
         }
     }
 
-    /// Index a value with another value, as in the "a[b]" syntax.
-    pub fn index(&self, index: &Value) -> Rc<RefCell<Value>> {
-        Rc::new(RefCell::new(match self {
-            Value::Nul => Value::Nul,
-            Value::Str(s) => Value::Int(
-                usize::try_from(index.to_i32() - 1)
-                    .ok()
-                    .and_then(|idx| s.as_bytes().get(idx).cloned())
-                    .map(|value| value as i32)
-                    .unwrap_or(0),
-            ),
-            Value::Int(i) => Value::Int(
-                usize::try_from(index.to_i32() - 1)
-                    .ok()
-                    .and_then(|idx| format!("{}", i).as_bytes().get(idx).cloned())
-                    .map(|value| value as i32)
-                    .unwrap_or(0),
-            ),
-            Value::Bool(b) => Value::Int(
-                usize::try_from(index.to_i32() - 1)
-                    .ok()
-                    .and_then(|idx| format!("{}", b).as_bytes().get(idx).cloned())
-                    .map(|value| value as i32)
-                    .unwrap_or(0),
-            ),
-            Value::Abool(b) => Value::Int(*b as i32),
-            Value::Functio(_) => Value::Int(42),
-            Value::Cart(c) => {
-                return (c.get(index).cloned()).unwrap_or_else(|| Rc::new(RefCell::new(Value::Nul)))
+    /// Coerce a Value to an aboolean
+    pub fn into_abool(self) -> Abool {
+        match self {
+            Value::Nul => Abool::Never,
+            Value::Str(s) => match s.to_lowercase().as_str() {
+                "never" => Abool::Never,
+                "sometimes" => Abool::Sometimes,
+                "always" => Abool::Always,
+                s => {
+                    if s.is_empty() {
+                        Abool::Never
+                    } else {
+                        Abool::Always
+                    }
+                }
+            },
+            Value::Int(x) => match x.cmp(&0) {
+                std::cmp::Ordering::Less => Abool::Never,
+                std::cmp::Ordering::Equal => Abool::Sometimes,
+                std::cmp::Ordering::Greater => Abool::Always,
+            },
+            Value::Bool(b) => {
+                if b {
+                    Abool::Always
+                } else {
+                    Abool::Never
+                }
             }
-        }))
+            Value::Abool(a) => a,
+            Value::Functio(_) => todo!(),
+            Value::Cart(c) => {
+                if c.is_empty() {
+                    Abool::Never
+                } else {
+                    Abool::Always
+                }
+            }
+        }
+    }
+
+    /// Coerce a Value to a functio
+    pub fn into_functio(self) -> Functio {
+        match self {
+            Value::Nul => Functio::AbleFunctio {
+                body: vec![],
+                params: vec![],
+            },
+            Value::Str(s) => Functio::Eval(s),
+            Value::Int(i) => todo!(),
+            Value::Bool(_) => todo!(),
+            Value::Abool(_) => todo!(),
+            Value::Functio(f) => f,
+            Value::Cart(_) => todo!(),
+        }
+    }
+
+    pub fn into_cart(self) -> Cart {
+        match self {
+            Value::Nul => HashMap::new(),
+            Value::Str(s) => s
+                .chars()
+                .enumerate()
+                .map(|(i, x)| {
+                    (
+                        Value::Int(i as i32 + 1),
+                        Rc::new(RefCell::new(Value::Str(x.to_string()))),
+                    )
+                })
+                .collect(),
+            Value::Int(i) => Value::Str(i.to_string()).into_cart(),
+            Value::Bool(b) => Value::Str(b.to_string()).into_cart(),
+            Value::Abool(a) => Value::Str(a.to_string()).into_cart(),
+            Value::Functio(f) => match f {
+                Functio::BfFunctio {
+                    instructions,
+                    tape_len,
+                } => {
+                    let mut cart: Cart = instructions
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            (
+                                Value::Int(i as i32 + 1),
+                                Rc::new(RefCell::new(
+                                    char::from_u32(x as u32)
+                                        .map(|x| Value::Str(x.to_string()))
+                                        .unwrap_or(Value::Nul),
+                                )),
+                            )
+                        })
+                        .collect();
+
+                    cart.insert(
+                        Value::Str("tapelen".to_owned()),
+                        Rc::new(RefCell::new(Value::Int(tape_len as _))),
+                    );
+                    cart
+                }
+                Functio::AbleFunctio { params, body } => {
+                    let params: Cart = params
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            (
+                                Value::Int(i as i32 + 1),
+                                Rc::new(RefCell::new(Value::Str(x))),
+                            )
+                        })
+                        .collect();
+
+                    let body: Cart = body
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            (
+                                Value::Int(i as i32 + 1),
+                                Rc::new(RefCell::new(Value::Str(format!("{:?}", x)))),
+                            )
+                        })
+                        .collect();
+
+                    let mut cart = HashMap::new();
+                    cart.insert(
+                        Value::Str("params".to_owned()),
+                        Rc::new(RefCell::new(Value::Cart(params))),
+                    );
+
+                    cart.insert(
+                        Value::Str("body".to_owned()),
+                        Rc::new(RefCell::new(Value::Cart(body))),
+                    );
+
+                    cart
+                }
+                Functio::Eval(s) => Value::Str(s).into_cart(),
+            },
+            Value::Cart(c) => c,
+        }
+    }
+}
+
+impl ops::Add for Value {
+    type Output = Value;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match self {
+            Value::Nul => todo!(),
+            Value::Str(s) => Value::Str(format!("{}{}", s, rhs.to_string())),
+            Value::Int(i) => Value::Int(i + rhs.into_i32()),
+            Value::Bool(b) => Value::Bool(b ^ rhs.into_bool()),
+            Value::Abool(a) => Value::Abool({
+                let rhs = rhs.into_abool();
+                if a == rhs {
+                    a
+                } else if a == Abool::Sometimes {
+                    if rand::thread_rng().gen() {
+                        Abool::Sometimes
+                    } else {
+                        rhs
+                    }
+                } else if rhs == Abool::Sometimes {
+                    if rand::thread_rng().gen() {
+                        Abool::Sometimes
+                    } else {
+                        a
+                    }
+                } else {
+                    Abool::Sometimes
+                }
+            }),
+            Value::Functio(f) => Value::Functio(todo!()),
+            Value::Cart(c) => {
+                Value::Cart(c.into_iter().chain(rhs.into_cart().into_iter()).collect())
+            }
+        }
+    }
+}
+
+impl ops::Sub for Value {
+    type Output = Value;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+}
+
+impl ops::Mul for Value {
+    type Output = Value;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+}
+
+impl ops::Div for Value {
+    type Output = Value;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        let other = other.clone();
+
+        match self {
+            Value::Nul => other == Value::Nul,
+            Value::Str(s) => *s == other.to_string(),
+            Value::Int(i) => *i == other.into_i32(),
+            Value::Bool(b) => *b == other.into_bool(),
+            Value::Abool(a) => *a == other.into_abool(),
+            Value::Functio(f) => *f == other.into_functio(),
+            Value::Cart(c) => *c == other.into_cart(),
+        }
+    }
+}
+
+impl Eq for Value {}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering::*;
+        let other = other.clone();
+
+        match self {
+            Value::Nul => {
+                if other == Value::Nul {
+                    Some(Equal)
+                } else {
+                    None
+                }
+            }
+            Value::Str(_) => todo!(),
+            Value::Int(_) => todo!(),
+            Value::Bool(_) => todo!(),
+            Value::Abool(_) => todo!(),
+            Value::Functio(_) => todo!(),
+            Value::Cart(_) => todo!(),
+        }
     }
 }
 
@@ -199,6 +398,7 @@ impl Display for Value {
                         body,
                     )
                 }
+                Functio::Eval(s) => write!(f, "{}", s),
             },
             Value::Cart(c) => {
                 write!(f, "[")?;

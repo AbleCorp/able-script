@@ -141,59 +141,19 @@ impl ExecEnv {
                 let lhs = self.eval_expr(lhs)?;
                 let rhs = self.eval_expr(rhs)?;
                 match kind {
-                    // Arithmetic operators.
-                    Add | Subtract | Multiply | Divide => {
-                        let lhs = lhs.to_i32();
-                        let rhs = rhs.to_i32();
-
-                        let res = match kind {
-                            Add => lhs.checked_add(rhs),
-                            Subtract => lhs.checked_sub(rhs),
-                            Multiply => lhs.checked_mul(rhs),
-                            Divide => lhs.checked_div(rhs),
-                            _ => unreachable!(),
-                        }
-                        .unwrap_or(consts::ANSWER);
-                        Int(res)
-                    }
-
-                    // Numeric comparisons.
-                    Less | Greater => {
-                        let lhs = lhs.to_i32();
-                        let rhs = rhs.to_i32();
-
-                        let res = match kind {
-                            Less => lhs < rhs,
-                            Greater => lhs > rhs,
-                            _ => unreachable!(),
-                        };
-                        Bool(res)
-                    }
-
-                    // General comparisons.
-                    Equal | NotEqual => {
-                        let res = match kind {
-                            Equal => lhs == rhs,
-                            NotEqual => lhs != rhs,
-                            _ => unreachable!(),
-                        };
-                        Bool(res)
-                    }
-
-                    // Logical connectives.
-                    And | Or => {
-                        let lhs = lhs.to_bool();
-                        let rhs = rhs.to_bool();
-                        let res = match kind {
-                            And => lhs && rhs,
-                            Or => lhs || rhs,
-                            _ => unreachable!(),
-                        };
-                        Bool(res)
-                    }
+                    Add => lhs + rhs,
+                    Subtract => todo!(),
+                    Multiply => todo!(),
+                    Divide => todo!(),
+                    Greater => Value::Bool(lhs > rhs),
+                    Less => Value::Bool(lhs < rhs),
+                    Equal => Value::Bool(lhs == rhs),
+                    NotEqual => Value::Bool(lhs != rhs),
+                    And => todo!(),
+                    Or => todo!(),
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(expr)?.to_bool()),
+            Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
             Literal(value) => value.clone(),
             ExprKind::Cart(members) => Value::Cart(
                 members
@@ -206,12 +166,15 @@ impl ExecEnv {
                     })
                     .collect::<Result<HashMap<_, _>, _>>()?,
             ),
-            Index { cart, index } => {
-                let cart = self.eval_expr(cart)?;
+            Index { expr, index } => {
+                let value = self.eval_expr(expr)?;
                 let index = self.eval_expr(index)?;
 
-                // TODO: this probably shouldn't be cloned
-                cart.index(&index).borrow().clone()
+                value
+                    .into_cart()
+                    .get(&index)
+                    .map(|x| x.borrow().clone())
+                    .unwrap_or(Value::Nul)
             }
 
             // TODO: not too happy with constructing an artificial
@@ -257,24 +220,20 @@ impl ExecEnv {
                         instructions: code.to_owned(),
                         tape_len: tape_len
                             .as_ref()
-                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.to_i32() as usize))
+                            .map(|tape_len| self.eval_expr(tape_len).map(|v| v.into_i32() as usize))
                             .unwrap_or(Ok(crate::brian::DEFAULT_TAPE_SIZE_LIMIT))?,
                     }),
                 );
             }
             StmtKind::If { cond, body } => {
-                if self.eval_expr(cond)?.to_bool() {
+                if self.eval_expr(cond)?.into_bool() {
                     return self.eval_stmts_hs(&body.block, true);
                 }
             }
             StmtKind::Call { expr, args } => {
-                let func = self.eval_expr(expr)?;
+                let func = self.eval_expr(expr)?.into_functio();
 
-                if let Value::Functio(func) = func {
-                    self.fn_call(func, args, &stmt.span)?;
-                } else {
-                    // Fail silently for now.
-                }
+                self.fn_call(func, args, &stmt.span)?;
             }
             StmtKind::Loop { body } => loop {
                 let res = self.eval_stmts_hs(&body.block, true)?;
@@ -386,6 +345,17 @@ impl ExecEnv {
 
                 self.stack.pop();
                 res?;
+            }
+            Functio::Eval(code) => {
+                if args.len() != 0 {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchedArgumentError,
+                        span: span.to_owned(),
+                    });
+                }
+
+                let stmts = crate::parser::Parser::new(&code).init()?;
+                self.eval_stmts(&stmts)?;
             }
         }
         Ok(())

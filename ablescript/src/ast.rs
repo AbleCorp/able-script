@@ -142,7 +142,7 @@ pub enum ExprKind {
     Literal(Value),
     Cart(Vec<(Expr, Expr)>),
     Index {
-        cart: Box<Expr>,
+        expr: Box<Expr>,
         index: Box<Expr>,
     },
     Variable(String),

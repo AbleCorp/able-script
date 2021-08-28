@@ -98,6 +98,7 @@ impl<'source> Parser<'source> {
             | Token::Integer(_)
             | Token::Abool(_)
             | Token::Bool(_)
+            | Token::Nul
             | Token::LeftBracket
             | Token::LeftParen => Ok(Stmt::new(
                 self.value_flow(token)?,
@@ -192,7 +193,7 @@ impl<'source> Parser<'source> {
             Token::LeftBracket => match buf.take() {
                 Some(buf) => Ok(Expr::new(
                     ExprKind::Index {
-                        cart: Box::new(buf),
+                        expr: Box::new(buf),
                         index: Box::new(self.expr_flow(Token::RightBracket)?),
                     },
                     start..self.lexer.span().end,
@@ -728,7 +729,7 @@ mod tests {
         let expected = &[Stmt {
             kind: StmtKind::Print(Expr {
                 kind: ExprKind::Index {
-                    cart: Box::new(Expr {
+                    expr: Box::new(Expr {
                         kind: ExprKind::Cart(vec![(
                             Expr {
                                 kind: ExprKind::Literal(Value::Str("able".to_string())),
