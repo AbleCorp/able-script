@@ -64,7 +64,7 @@ pub enum Token {
     #[token("!=")]
     NotEqual,
 
-    #[token("!|aint")] // also add aint as a not keyword
+    #[regex("!|aint")] // also add aint as a not keyword
     Not,
 
     // Keywords

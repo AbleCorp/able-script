@@ -99,6 +99,7 @@ impl<'source> Parser<'source> {
             | Token::Abool(_)
             | Token::Bool(_)
             | Token::Nul
+            | Token::Not
             | Token::LeftBracket
             | Token::LeftParen => Ok(Stmt::new(
                 self.value_flow(token)?,

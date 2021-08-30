@@ -151,7 +151,7 @@ impl ExecEnv {
                     NotEqual => Value::Bool(lhs != rhs),
                 }
             }
-            Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
+            Not(expr) => !self.eval_expr(expr)?,
             Literal(value) => value.clone(),
             ExprKind::Cart(members) => Value::Cart(
                 members
@@ -539,7 +539,7 @@ mod tests {
                 span: 1..1
             })
             .unwrap(),
-            Value::Int(42)
+            Value::Int(-2147483648)
         );
 
         // And the same for divide by zero.
@@ -547,7 +547,7 @@ mod tests {
             env.eval_expr(&Expr {
                 kind: ExprKind::BinOp {
                     lhs: Box::new(Expr {
-                        kind: ExprKind::Literal(Value::Int(1)),
+                        kind: ExprKind::Literal(Value::Int(84)),
                         span: 1..1,
                     }),
                     rhs: Box::new(Expr {
@@ -559,7 +559,7 @@ mod tests {
                 span: 1..1
             })
             .unwrap(),
-            Value::Int(42)
+            Value::Int(2)
         );
     }
 

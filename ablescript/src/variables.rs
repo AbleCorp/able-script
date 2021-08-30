@@ -418,6 +418,14 @@ impl ops::Div for Value {
     }
 }
 
+impl ops::Not for Value {
+    type Output = Value;
+
+    fn not(self) -> Self::Output {
+        todo!()
+    }
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         let other = other.clone();
