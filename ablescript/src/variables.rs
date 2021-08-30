@@ -186,7 +186,7 @@ impl Value {
                 params: vec![],
             },
             Value::Str(s) => Functio::Eval(s),
-            Value::Int(i) => todo!(),
+            Value::Int(_) => todo!(),
             Value::Bool(_) => todo!(),
             Value::Abool(_) => todo!(),
             Value::Functio(f) => f,
@@ -296,27 +296,10 @@ impl ops::Add for Value {
             Value::Str(s) => Value::Str(format!("{}{}", s, rhs.to_string())),
             Value::Int(i) => Value::Int(i.wrapping_add(rhs.into_i32())),
             Value::Bool(b) => Value::Bool(b || rhs.into_bool()),
-            Value::Abool(a) => Value::Abool({
-                let rhs = rhs.into_abool();
-                if a == rhs {
-                    a
-                } else if a == Abool::Sometimes {
-                    if rand::thread_rng().gen() {
-                        Abool::Sometimes
-                    } else {
-                        rhs
-                    }
-                } else if rhs == Abool::Sometimes {
-                    if rand::thread_rng().gen() {
-                        Abool::Sometimes
-                    } else {
-                        a
-                    }
-                } else {
-                    Abool::Sometimes
-                }
-            }),
-            Value::Functio(f) => Value::Functio(todo!()),
+            Value::Abool(_) => {
+                Value::Abool(Value::Int(self.into_i32().max(rhs.into_i32())).into_abool())
+            }
+            Value::Functio(_) => todo!(),
             Value::Cart(c) => {
                 Value::Cart(c.into_iter().chain(rhs.into_cart().into_iter()).collect())
             }
@@ -341,7 +324,7 @@ impl ops::Sub for Value {
             Value::Str(s) => Value::Str(s.replace(&rhs.to_string(), "")),
             Value::Int(i) => Value::Int(i.wrapping_sub(rhs.into_i32())),
             Value::Bool(b) => Value::Bool(b ^ rhs.into_bool()),
-            Value::Abool(_) => todo!(),
+            Value::Abool(_) => (self.clone() + rhs.clone()) * !(self * rhs),
             Value::Functio(_) => todo!(),
             Value::Cart(c) => Value::Cart({
                 let rhs_cart = rhs.into_cart();
@@ -370,9 +353,25 @@ impl ops::Mul for Value {
             Value::Str(s) => Value::Str(s.repeat(rhs.into_i32() as usize)),
             Value::Int(i) => Value::Int(i.wrapping_mul(rhs.into_i32())),
             Value::Bool(b) => Value::Bool(b && rhs.into_bool()),
-            Value::Abool(_) => todo!(),
+            Value::Abool(_) => {
+                Value::Abool(Value::Int(self.into_i32().min(rhs.into_i32())).into_abool())
+            }
             Value::Functio(_) => todo!(),
-            Value::Cart(_) => todo!(),
+            Value::Cart(c) => {
+                let rhsc = rhs.into_cart();
+
+                Value::Cart(
+                    c.into_iter()
+                        .map(|(k, v)| {
+                            if let Some(k) = rhsc.get(&k) {
+                                (k.borrow().clone(), v)
+                            } else {
+                                (k, v)
+                            }
+                        })
+                        .collect(),
+                )
+            }
         }
     }
 }
@@ -410,10 +409,29 @@ impl ops::Div for Value {
                     i.wrapping_div(rhsi)
                 }
             }),
-            Value::Bool(b) => Value::Bool(!(b && rhs.into_bool())),
-            Value::Abool(_) => todo!(),
+            Value::Bool(b) => Value::Bool(!b || rhs.into_bool()),
+            Value::Abool(_) => !self + rhs,
             Value::Functio(_) => todo!(),
-            Value::Cart(_) => todo!(),
+            Value::Cart(c) => {
+                let cart_len = c.len();
+                let chunk_len = rhs.into_i32() as usize;
+
+                Value::Cart(
+                    c.into_iter()
+                        .collect::<Vec<_>>()
+                        .chunks(cart_len / chunk_len + (cart_len % chunk_len != 0) as usize)
+                        .enumerate()
+                        .map(|(k, v)| {
+                            (
+                                Value::Int(k as i32 + 1),
+                                Rc::new(RefCell::new(Value::Cart(
+                                    v.into_iter().cloned().collect(),
+                                ))),
+                            )
+                        })
+                        .collect(),
+                )
+            }
         }
     }
 }
