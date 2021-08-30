@@ -459,22 +459,6 @@ impl PartialOrd for Value {
     }
 }
 
-impl ops::BitAnd for Value {
-    type Output = Value;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-}
-
-impl ops::BitOr for Value {
-    type Output = Value;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-}
-
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

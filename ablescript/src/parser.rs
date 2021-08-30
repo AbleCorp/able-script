@@ -209,9 +209,7 @@ impl<'source> Parser<'source> {
             | Token::EqualEqual
             | Token::NotEqual
             | Token::LessThan
-            | Token::GreaterThan
-            | Token::And
-            | Token::Or => Ok(Expr::new(
+            | Token::GreaterThan => Ok(Expr::new(
                 self.binop_flow(
                     BinOpKind::from_token(token).map_err(|e| Error::new(e, self.lexer.span()))?,
                     buf,

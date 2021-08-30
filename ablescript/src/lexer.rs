@@ -64,12 +64,6 @@ pub enum Token {
     #[token("!=")]
     NotEqual,
 
-    #[token("&")]
-    And,
-
-    #[token("|")]
-    Or,
-
     #[token("!|aint")] // also add aint as a not keyword
     Not,
 

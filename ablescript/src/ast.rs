@@ -164,8 +164,6 @@ pub enum BinOpKind {
     Less,
     Equal,
     NotEqual,
-    And,
-    Or,
 }
 
 impl BinOpKind {
@@ -181,8 +179,6 @@ impl BinOpKind {
             Token::LessThan => Ok(Self::Less),
             Token::EqualEqual => Ok(Self::Equal),
             Token::NotEqual => Ok(Self::NotEqual),
-            Token::And => Ok(Self::And),
-            Token::Or => Ok(Self::Or),
             t => Err(crate::error::ErrorKind::UnexpectedToken(t)),
         }
     }

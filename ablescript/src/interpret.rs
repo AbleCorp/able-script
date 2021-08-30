@@ -149,8 +149,6 @@ impl ExecEnv {
                     Less => Value::Bool(lhs < rhs),
                     Equal => Value::Bool(lhs == rhs),
                     NotEqual => Value::Bool(lhs != rhs),
-                    And => lhs & rhs,
-                    Or => lhs | rhs,
                 }
             }
             Not(expr) => Bool(!self.eval_expr(expr)?.into_bool()),
