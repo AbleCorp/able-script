@@ -133,7 +133,7 @@ pub enum Token {
     String(String),
 
     /// Integer
-    #[regex(r"[0-9]+", get_int)]
+    #[regex(r"-?[0-9]+", get_int)]
     Integer(i32),
 
     /// A C-complaint identifier

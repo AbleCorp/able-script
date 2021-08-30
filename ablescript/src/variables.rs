@@ -422,7 +422,23 @@ impl ops::Not for Value {
     type Output = Value;
 
     fn not(self) -> Self::Output {
-        todo!()
+        match self {
+            Value::Nul => Value::Nul,
+            Value::Str(s) => Value::Str(s.chars().rev().collect()),
+            Value::Int(i) => Value::Int(i.swap_bytes()),
+            Value::Bool(b) => Value::Bool(!b),
+            Value::Abool(a) => Value::Abool(match a {
+                Abool::Never => Abool::Always,
+                Abool::Sometimes => Abool::Sometimes,
+                Abool::Always => Abool::Never,
+            }),
+            Value::Functio(_) => todo!(),
+            Value::Cart(c) => Value::Cart(
+                c.into_iter()
+                    .map(|(k, v)| (v.borrow().clone(), Rc::new(RefCell::new(k))))
+                    .collect(),
+            ),
+        }
     }
 }
 
@@ -431,7 +447,13 @@ impl PartialEq for Value {
         let other = other.clone();
 
         match self {
-            Value::Nul => other == Value::Nul,
+            Value::Nul => {
+                if let Value::Nul = other {
+                    true
+                } else {
+                    false
+                }
+            }
             Value::Str(s) => *s == other.to_string(),
             Value::Int(i) => *i == other.into_i32(),
             Value::Bool(b) => *b == other.into_bool(),
