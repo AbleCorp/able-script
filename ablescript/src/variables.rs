@@ -1,6 +1,14 @@
 use std::{
-    cell::RefCell, collections::HashMap, convert::TryFrom, fmt::Display, hash::Hash, io::Write,
-    mem::discriminant, ops, rc::Rc, vec,
+    cell::RefCell,
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    fmt::Display,
+    hash::Hash,
+    io::Write,
+    mem::discriminant,
+    ops,
+    rc::Rc,
+    vec,
 };
 
 use rand::Rng;
@@ -203,31 +211,6 @@ impl Value {
             Value::Bool(b) => Value::Str(b.to_string()).into_cart(),
             Value::Abool(a) => Value::Str(a.to_string()).into_cart(),
             Value::Functio(f) => match f {
-                Functio::BfFunctio {
-                    instructions,
-                    tape_len,
-                } => {
-                    let mut cart: Cart = instructions
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, x)| {
-                            (
-                                Value::Int(i as i32 + 1),
-                                Rc::new(RefCell::new(
-                                    char::from_u32(x as u32)
-                                        .map(|x| Value::Str(x.to_string()))
-                                        .unwrap_or(Value::Nul),
-                                )),
-                            )
-                        })
-                        .collect();
-
-                    cart.insert(
-                        Value::Str("tapelen".to_owned()),
-                        Rc::new(RefCell::new(Value::Int(tape_len as _))),
-                    );
-                    cart
-                }
                 Functio::AbleFunctio { params, body } => {
                     let params: Cart = params
                         .into_iter()
@@ -264,6 +247,31 @@ impl Value {
 
                     cart
                 }
+                Functio::BfFunctio {
+                    instructions,
+                    tape_len,
+                } => {
+                    let mut cart: Cart = instructions
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, x)| {
+                            (
+                                Value::Int(i as i32 + 1),
+                                Rc::new(RefCell::new(
+                                    char::from_u32(x as u32)
+                                        .map(|x| Value::Str(x.to_string()))
+                                        .unwrap_or(Value::Nul),
+                                )),
+                            )
+                        })
+                        .collect();
+
+                    cart.insert(
+                        Value::Str("tapelen".to_owned()),
+                        Rc::new(RefCell::new(Value::Int(tape_len as _))),
+                    );
+                    cart
+                }
                 Functio::Eval(s) => Value::Str(s).into_cart(),
             },
             Value::Cart(c) => c,
@@ -276,10 +284,18 @@ impl ops::Add for Value {
 
     fn add(self, rhs: Self) -> Self::Output {
         match self {
-            Value::Nul => todo!(),
+            Value::Nul => match rhs {
+                Value::Nul => Value::Nul,
+                Value::Str(_) => Value::Str(self.to_string()) + rhs,
+                Value::Int(_) => Value::Int(self.into_i32()) + rhs,
+                Value::Bool(_) => Value::Bool(self.into_bool()) + rhs,
+                Value::Abool(_) => Value::Abool(self.into_abool()) + rhs,
+                Value::Functio(_) => Value::Functio(self.into_functio()) + rhs,
+                Value::Cart(_) => Value::Cart(self.into_cart()) + rhs,
+            },
             Value::Str(s) => Value::Str(format!("{}{}", s, rhs.to_string())),
-            Value::Int(i) => Value::Int(i.checked_add(rhs.into_i32()).unwrap_or(consts::ANSWER)),
-            Value::Bool(b) => Value::Bool(b ^ rhs.into_bool()),
+            Value::Int(i) => Value::Int(i.wrapping_add(rhs.into_i32())),
+            Value::Bool(b) => Value::Bool(b || rhs.into_bool()),
             Value::Abool(a) => Value::Abool({
                 let rhs = rhs.into_abool();
                 if a == rhs {
@@ -312,7 +328,28 @@ impl ops::Sub for Value {
     type Output = Value;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            Value::Nul => match rhs {
+                Value::Nul => Value::Nul,
+                Value::Str(_) => Value::Str(self.to_string()) - rhs,
+                Value::Int(_) => Value::Int(self.into_i32()) - rhs,
+                Value::Bool(_) => Value::Bool(self.into_bool()) - rhs,
+                Value::Abool(_) => Value::Abool(self.into_abool()) - rhs,
+                Value::Functio(_) => Value::Functio(self.into_functio()) - rhs,
+                Value::Cart(_) => Value::Cart(self.into_cart()) - rhs,
+            },
+            Value::Str(s) => Value::Str(s.replace(&rhs.to_string(), "")),
+            Value::Int(i) => Value::Int(i.wrapping_sub(rhs.into_i32())),
+            Value::Bool(b) => Value::Bool(b ^ rhs.into_bool()),
+            Value::Abool(_) => todo!(),
+            Value::Functio(_) => todo!(),
+            Value::Cart(c) => Value::Cart({
+                let rhs_cart = rhs.into_cart();
+                c.into_iter()
+                    .filter(|(k, v)| rhs_cart.get(k) != Some(v))
+                    .collect()
+            }),
+        }
     }
 }
 
@@ -320,7 +357,23 @@ impl ops::Mul for Value {
     type Output = Value;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            Value::Nul => match rhs {
+                Value::Nul => Value::Nul,
+                Value::Str(_) => Value::Str(self.to_string()) * rhs,
+                Value::Int(_) => Value::Int(self.into_i32()) * rhs,
+                Value::Bool(_) => Value::Bool(self.into_bool()) * rhs,
+                Value::Abool(_) => Value::Abool(self.into_abool()) * rhs,
+                Value::Functio(_) => Value::Functio(self.into_functio()) * rhs,
+                Value::Cart(_) => Value::Cart(self.into_cart()) * rhs,
+            },
+            Value::Str(s) => Value::Str(s.repeat(rhs.into_i32() as usize)),
+            Value::Int(i) => Value::Int(i.wrapping_mul(rhs.into_i32())),
+            Value::Bool(b) => Value::Bool(b && rhs.into_bool()),
+            Value::Abool(_) => todo!(),
+            Value::Functio(_) => todo!(),
+            Value::Cart(_) => todo!(),
+        }
     }
 }
 
@@ -328,7 +381,40 @@ impl ops::Div for Value {
     type Output = Value;
 
     fn div(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            Value::Nul => match rhs {
+                Value::Nul => Value::Nul,
+                Value::Str(_) => Value::Str(self.to_string()) / rhs,
+                Value::Int(_) => Value::Int(self.into_i32()) / rhs,
+                Value::Bool(_) => Value::Bool(self.into_bool()) / rhs,
+                Value::Abool(_) => Value::Abool(self.into_abool()) / rhs,
+                Value::Functio(_) => Value::Functio(self.into_functio()) / rhs,
+                Value::Cart(_) => Value::Cart(self.into_cart()) / rhs,
+            },
+            Value::Str(s) => Value::Cart(
+                s.split(&rhs.to_string())
+                    .enumerate()
+                    .map(|(i, x)| {
+                        (
+                            Value::Int(i as i32 + 1),
+                            Rc::new(RefCell::new(Value::Str(x.to_owned()))),
+                        )
+                    })
+                    .collect(),
+            ),
+            Value::Int(i) => Value::Int({
+                let rhsi = rhs.into_i32();
+                if rhsi == 0 {
+                    consts::ANSWER
+                } else {
+                    i.wrapping_div(rhsi)
+                }
+            }),
+            Value::Bool(b) => Value::Bool(!(b && rhs.into_bool())),
+            Value::Abool(_) => todo!(),
+            Value::Functio(_) => todo!(),
+            Value::Cart(_) => todo!(),
+        }
     }
 }
 
