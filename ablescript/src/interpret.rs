@@ -21,7 +21,7 @@ use rand::random;
 use crate::{
     ast::{Expr, ExprKind, Iden, Stmt, StmtKind},
     base_55,
-    consts::{self, ablescript_consts},
+    consts::ablescript_consts,
     error::{Error, ErrorKind},
     variables::{Functio, Value, Variable},
 };
@@ -134,7 +134,6 @@ impl ExecEnv {
     fn eval_expr(&self, expr: &Expr) -> Result<Value, Error> {
         use crate::ast::BinOpKind::*;
         use crate::ast::ExprKind::*;
-        use Value::*;
 
         Ok(match &expr.kind {
             BinOp { lhs, rhs, kind } => {
@@ -345,7 +344,7 @@ impl ExecEnv {
                 res?;
             }
             Functio::Eval(code) => {
-                if args.len() != 0 {
+                if !args.is_empty() {
                     return Err(Error {
                         kind: ErrorKind::MismatchedArgumentError,
                         span: span.to_owned(),

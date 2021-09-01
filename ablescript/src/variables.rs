@@ -1,14 +1,6 @@
 use std::{
-    cell::RefCell,
-    collections::HashMap,
-    convert::{TryFrom, TryInto},
-    fmt::Display,
-    hash::Hash,
-    io::Write,
-    mem::discriminant,
-    ops,
-    rc::Rc,
-    vec,
+    cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, io::Write, mem::discriminant,
+    ops, rc::Rc, vec,
 };
 
 use rand::Rng;
@@ -424,9 +416,7 @@ impl ops::Div for Value {
                         .map(|(k, v)| {
                             (
                                 Value::Int(k as i32 + 1),
-                                Rc::new(RefCell::new(Value::Cart(
-                                    v.into_iter().cloned().collect(),
-                                ))),
+                                Rc::new(RefCell::new(Value::Cart(v.iter().cloned().collect()))),
                             )
                         })
                         .collect(),
@@ -465,13 +455,7 @@ impl PartialEq for Value {
         let other = other.clone();
 
         match self {
-            Value::Nul => {
-                if let Value::Nul = other {
-                    true
-                } else {
-                    false
-                }
-            }
+            Value::Nul => matches!(other, Value::Nul),
             Value::Str(s) => *s == other.to_string(),
             Value::Int(i) => *i == other.into_i32(),
             Value::Bool(b) => *b == other.into_bool(),
@@ -542,8 +526,8 @@ impl Display for Value {
             },
             Value::Cart(c) => {
                 write!(f, "[")?;
-                let mut cart_vec = c.into_iter().collect::<Vec<_>>();
-                cart_vec.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap_or(std::cmp::Ordering::Less));
+                let mut cart_vec = c.iter().collect::<Vec<_>>();
+                cart_vec.sort_by(|x, y| x.0.partial_cmp(y.0).unwrap_or(std::cmp::Ordering::Less));
 
                 for (key, value) in cart_vec {
                     write!(f, "{} <= {}, ", value.borrow(), key)?;
