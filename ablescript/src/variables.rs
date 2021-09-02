@@ -395,7 +395,7 @@ impl ops::Div for Value {
             ),
             Value::Int(i) => Value::Int(i.wrapping_div(match rhs.into_i32() {
                 0 => consts::ANSWER,
-                rhsi => rhsi,
+                x => x,
             })),
             Value::Bool(b) => Value::Bool(!b || rhs.into_bool()),
             Value::Abool(_) => !self + rhs,
