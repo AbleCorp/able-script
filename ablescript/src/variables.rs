@@ -393,14 +393,10 @@ impl ops::Div for Value {
                     })
                     .collect(),
             ),
-            Value::Int(i) => Value::Int({
-                let rhsi = rhs.into_i32();
-                if rhsi == 0 {
-                    consts::ANSWER
-                } else {
-                    i.wrapping_div(rhsi)
-                }
-            }),
+            Value::Int(i) => Value::Int(i.wrapping_div(match rhs.into_i32() {
+                0 => consts::ANSWER,
+                rhsi => rhsi,
+            })),
             Value::Bool(b) => Value::Bool(!b || rhs.into_bool()),
             Value::Abool(_) => !self + rhs,
             Value::Functio(_) => todo!(),
