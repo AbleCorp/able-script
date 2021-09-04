@@ -201,7 +201,7 @@ impl ExecEnv {
                 self.decl_var(
                     &iden.iden,
                     Value::Functio(Functio::AbleFunctio {
-                        params: params.iter().map(|iden| iden.iden.to_string()).collect(),
+                        params: params.iter().map(|iden| iden.iden.to_owned()).collect(),
                         body: body.block.to_owned(),
                     }),
                 );

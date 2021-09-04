@@ -558,7 +558,7 @@ mod tests {
                             rhs: Box::new(Expr {
                                 kind: ExprKind::BinOp {
                                     lhs: Box::new(Expr {
-                                        kind: ExprKind::Variable("a".to_string()),
+                                        kind: ExprKind::Variable("a".to_owned()),
                                         span: 5..6,
                                     }),
                                     rhs: Box::new(Expr {
@@ -594,7 +594,7 @@ mod tests {
         let expected = &[Stmt {
             kind: StmtKind::Var {
                 iden: Iden {
-                    iden: "a".to_string(),
+                    iden: "a".to_owned(),
                     span: 4..5,
                 },
                 init: Some(Expr {
@@ -631,7 +631,7 @@ mod tests {
                 body: Block {
                     block: vec![Stmt {
                         kind: StmtKind::Print(Expr {
-                            kind: ExprKind::Literal(Value::Str("Buy Able products!".to_string())),
+                            kind: ExprKind::Literal(Value::Str("Buy Able products!".to_owned())),
                             span: 19..39,
                         }),
                         span: 19..46,
@@ -651,17 +651,17 @@ mod tests {
         let expected = &[Stmt {
             kind: StmtKind::Var {
                 iden: Iden {
-                    iden: "script".to_string(),
+                    iden: "script".to_owned(),
                     span: 13..17,
                 },
                 init: Some(Expr {
                     kind: ExprKind::BinOp {
                         lhs: Box::new(Expr {
-                            kind: ExprKind::Literal(Value::Str("script".to_string())),
+                            kind: ExprKind::Literal(Value::Str("script".to_owned())),
                             span: 20..26,
                         }),
                         rhs: Box::new(Expr {
-                            kind: ExprKind::Variable("script".to_string()),
+                            kind: ExprKind::Variable("script".to_owned()),
                             span: 29..33,
                         }),
                         kind: BinOpKind::Add,
@@ -684,7 +684,7 @@ mod tests {
                 kind: ExprKind::Cart(vec![
                     (
                         Expr {
-                            kind: ExprKind::Literal(Value::Str("able".to_string())),
+                            kind: ExprKind::Literal(Value::Str("able".to_owned())),
                             span: 1..7,
                         },
                         Expr {
@@ -694,7 +694,7 @@ mod tests {
                     ),
                     (
                         Expr {
-                            kind: ExprKind::Literal(Value::Str("script".to_string())),
+                            kind: ExprKind::Literal(Value::Str("script".to_owned())),
                             span: 14..22,
                         },
                         Expr {
@@ -731,11 +731,11 @@ mod tests {
                     expr: Box::new(Expr {
                         kind: ExprKind::Cart(vec![(
                             Expr {
-                                kind: ExprKind::Literal(Value::Str("able".to_string())),
+                                kind: ExprKind::Literal(Value::Str("able".to_owned())),
                                 span: 1..7,
                             },
                             Expr {
-                                kind: ExprKind::Literal(Value::Str("ablecorp".to_string())),
+                                kind: ExprKind::Literal(Value::Str("ablecorp".to_owned())),
                                 span: 11..21,
                             },
                         )]),

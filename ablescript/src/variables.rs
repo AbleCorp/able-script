@@ -113,7 +113,7 @@ impl Value {
         }
     }
 
-    /// Coerce a Value to a boolean. The conversion cannot fail.
+    /// Coerce a value to a boolean.
     pub fn into_bool(self) -> bool {
         match self {
             Value::Abool(b) => b.into(),
@@ -130,7 +130,7 @@ impl Value {
         }
     }
 
-    /// Coerce a Value to an aboolean
+    /// Coerce a value to an aboolean.
     pub fn into_abool(self) -> Abool {
         match self {
             Value::Nul => Abool::Never,
@@ -170,7 +170,7 @@ impl Value {
         }
     }
 
-    /// Coerce a Value to a functio
+    /// Coerce a value to a functio.
     pub fn into_functio(self) -> Functio {
         match self {
             Value::Nul => Functio::AbleFunctio {
@@ -186,6 +186,7 @@ impl Value {
         }
     }
 
+    /// Coerce a value into a cart.
     pub fn into_cart(self) -> Cart {
         match self {
             Value::Nul => HashMap::new(),
