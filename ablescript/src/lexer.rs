@@ -137,7 +137,7 @@ pub enum Token {
     Integer(i32),
 
     /// A C-complaint identifier
-    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_iden)]
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", get_ident)]
     Identifier(String),
 
     #[regex(r"owo .*")]
@@ -172,7 +172,7 @@ fn get_abool(lexer: &mut Lexer<Token>) -> Option<Abool> {
     }
 }
 
-fn get_iden(lexer: &mut Lexer<Token>) -> String {
+fn get_ident(lexer: &mut Lexer<Token>) -> String {
     lexer.slice().to_owned()
 }
 

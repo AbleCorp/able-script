@@ -15,26 +15,26 @@ use crate::variables::Value;
 type Span = std::ops::Range<usize>;
 
 #[derive(Debug, Clone)]
-pub struct Iden {
-    pub iden: String,
+pub struct Ident {
+    pub ident: String,
     pub span: Span,
 }
 
-impl Iden {
-    pub fn new(iden: String, span: Span) -> Self {
-        Self { iden, span }
+impl Ident {
+    pub fn new(ident: String, span: Span) -> Self {
+        Self { ident, span }
     }
 }
 
-impl PartialEq for Iden {
+impl PartialEq for Ident {
     fn eq(&self, other: &Self) -> bool {
-        self.iden == other.iden
+        self.ident == other.ident
     }
 }
 
-impl Hash for Iden {
+impl Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.iden.hash(state)
+        self.ident.hash(state)
     }
 }
 
@@ -76,21 +76,21 @@ pub enum StmtKind {
     HopBack,
 
     Var {
-        iden: Iden,
+        ident: Ident,
         init: Option<Expr>,
     },
     Assign {
-        iden: Iden,
+        ident: Ident,
         value: Expr,
     },
 
     Functio {
-        iden: Iden,
-        params: Vec<Iden>,
+        ident: Ident,
+        params: Vec<Ident>,
         body: Block,
     },
     BfFunctio {
-        iden: Iden,
+        ident: Ident,
         tape_len: Option<Expr>,
         code: Vec<u8>,
     },
@@ -99,8 +99,8 @@ pub enum StmtKind {
         args: Vec<Expr>,
     },
     Print(Expr),
-    Read(Iden),
-    Melo(Iden),
+    Read(Ident),
+    Melo(Ident),
     Rlyeh,
     Rickroll,
 }

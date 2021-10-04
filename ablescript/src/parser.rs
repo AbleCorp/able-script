@@ -131,13 +131,13 @@ impl<'source> Parser<'source> {
     }
 
     /// Get an Identifier
-    fn get_iden(&mut self) -> Result<Iden, Error> {
+    fn get_ident(&mut self) -> Result<Ident, Error> {
         match self.checked_next()? {
-            Token::Identifier(iden) => Ok(Iden {
-                iden: if self.tdark {
-                    iden.replace("lang", "script")
+            Token::Identifier(ident) => Ok(Ident {
+                ident: if self.tdark {
+                    ident.replace("lang", "script")
                 } else {
-                    iden
+                    ident
                 },
                 span: self.lexer.span(),
             }),
@@ -356,12 +356,12 @@ impl<'source> Parser<'source> {
                 // Variable Assignment
                 Token::Equal => {
                     if let Some(Expr {
-                        kind: ExprKind::Variable(iden),
+                        kind: ExprKind::Variable(ident),
                         span,
                     }) = buf
                     {
                         break StmtKind::Assign {
-                            iden: Iden::new(iden, span),
+                            ident: Ident::new(ident, span),
                             value: self.expr_flow(Token::Semicolon)?,
                         };
                     }
@@ -370,11 +370,11 @@ impl<'source> Parser<'source> {
                 // Read input
                 Token::Read => {
                     if let Some(Expr {
-                        kind: ExprKind::Variable(iden),
+                        kind: ExprKind::Variable(ident),
                         span,
                     }) = buf
                     {
-                        break self.semi_terminated(StmtKind::Read(Iden::new(iden, span)))?;
+                        break self.semi_terminated(StmtKind::Read(Ident::new(ident, span)))?;
                     }
                 }
 
@@ -400,9 +400,9 @@ impl<'source> Parser<'source> {
 
     /// Parse functio flow
     ///
-    /// functio $iden (a, b, c) { ... }
+    /// functio $ident (a, b, c) { ... }
     fn functio_flow(&mut self) -> Result<StmtKind, Error> {
-        let iden = self.get_iden()?;
+        let ident = self.get_ident()?;
 
         self.require(Token::LeftParen)?;
 
@@ -411,7 +411,7 @@ impl<'source> Parser<'source> {
             match self.checked_next()? {
                 Token::RightParen => break,
                 Token::Identifier(i) => {
-                    params.push(Iden::new(i, self.lexer.span()));
+                    params.push(Ident::new(i, self.lexer.span()));
 
                     // Require comma (next) or right paren (end) after identifier
                     match self.checked_next()? {
@@ -431,14 +431,14 @@ impl<'source> Parser<'source> {
 
         let body = self.get_block()?;
 
-        Ok(StmtKind::Functio { iden, params, body })
+        Ok(StmtKind::Functio { ident, params, body })
     }
 
     /// Parse BF function declaration
     ///
-    /// `bff $iden ([tapelen]) { ... }`
+    /// `bff $ident ([tapelen]) { ... }`
     fn bff_flow(&mut self) -> Result<StmtKind, Error> {
-        let iden = self.get_iden()?;
+        let ident = self.get_ident()?;
 
         let tape_len = match self.checked_next()? {
             Token::LeftParen => {
@@ -472,7 +472,7 @@ impl<'source> Parser<'source> {
         }
 
         Ok(StmtKind::BfFunctio {
-            iden,
+            ident,
             tape_len,
             code,
         })
@@ -513,20 +513,20 @@ impl<'source> Parser<'source> {
 
     /// Parse variable declaration
     fn var_flow(&mut self) -> Result<StmtKind, Error> {
-        let iden = self.get_iden()?;
+        let ident = self.get_ident()?;
         let init = match self.checked_next()? {
             Token::Equal => Some(self.expr_flow(Token::Semicolon)?),
             Token::Semicolon => None,
             t => return Err(Error::new(ErrorKind::UnexpectedToken(t), self.lexer.span())),
         };
 
-        Ok(StmtKind::Var { iden, init })
+        Ok(StmtKind::Var { ident, init })
     }
 
     /// Parse Melo flow
     fn melo_flow(&mut self) -> Result<StmtKind, Error> {
-        let iden = self.get_iden()?;
-        self.semi_terminated(StmtKind::Melo(iden))
+        let ident = self.get_ident()?;
+        self.semi_terminated(StmtKind::Melo(ident))
     }
 
     /// Parse loop flow
@@ -593,8 +593,8 @@ mod tests {
         let code = r#"var a = 42;"#;
         let expected = &[Stmt {
             kind: StmtKind::Var {
-                iden: Iden {
-                    iden: "a".to_owned(),
+                ident: Ident {
+                    ident: "a".to_owned(),
                     span: 4..5,
                 },
                 init: Some(Expr {
@@ -650,8 +650,8 @@ mod tests {
         let code = r#"T-Dark { var lang = "lang" + lang; }"#;
         let expected = &[Stmt {
             kind: StmtKind::Var {
-                iden: Iden {
-                    iden: "script".to_owned(),
+                ident: Ident {
+                    ident: "script".to_owned(),
                     span: 13..17,
                 },
                 init: Some(Expr {

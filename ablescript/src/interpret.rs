@@ -19,7 +19,7 @@ use std::{
 use rand::random;
 
 use crate::{
-    ast::{Expr, ExprKind, Iden, Stmt, StmtKind},
+    ast::{Expr, ExprKind, Ident, Stmt, StmtKind},
     base_55,
     consts::ablescript_consts,
     error::{Error, ErrorKind},
@@ -175,9 +175,9 @@ impl ExecEnv {
             }
 
             // TODO: not too happy with constructing an artificial
-            // Iden here.
-            Variable(name) => self.get_var(&Iden {
-                iden: name.to_owned(),
+            // Ident here.
+            Variable(name) => self.get_var(&Ident {
+                ident: name.to_owned(),
                 span: expr.span.clone(),
             })?,
         })
@@ -189,30 +189,30 @@ impl ExecEnv {
             StmtKind::Print(expr) => {
                 println!("{}", self.eval_expr(expr)?);
             }
-            StmtKind::Var { iden, init } => {
+            StmtKind::Var { ident, init } => {
                 let init = match init {
                     Some(e) => self.eval_expr(e)?,
                     None => Value::Nul,
                 };
 
-                self.decl_var(&iden.iden, init);
+                self.decl_var(&ident.ident, init);
             }
-            StmtKind::Functio { iden, params, body } => {
+            StmtKind::Functio { ident, params, body } => {
                 self.decl_var(
-                    &iden.iden,
+                    &ident.ident,
                     Value::Functio(Functio::AbleFunctio {
-                        params: params.iter().map(|iden| iden.iden.to_owned()).collect(),
+                        params: params.iter().map(|ident| ident.ident.to_owned()).collect(),
                         body: body.block.to_owned(),
                     }),
                 );
             }
             StmtKind::BfFunctio {
-                iden,
+                ident,
                 tape_len,
                 code,
             } => {
                 self.decl_var(
-                    &iden.iden,
+                    &ident.ident,
                     Value::Functio(Functio::BfFunctio {
                         instructions: code.to_owned(),
                         tape_len: tape_len
@@ -240,9 +240,9 @@ impl ExecEnv {
                     HaltStatus::Hopback(_) => continue,
                 }
             },
-            StmtKind::Assign { iden, value } => {
+            StmtKind::Assign { ident, value } => {
                 let value = self.eval_expr(value)?;
-                self.get_var_mut(iden)?.value.replace(value);
+                self.get_var_mut(ident)?.value.replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
@@ -250,8 +250,8 @@ impl ExecEnv {
             StmtKind::HopBack => {
                 return Ok(HaltStatus::Hopback(stmt.span.clone()));
             }
-            StmtKind::Melo(iden) => {
-                self.get_var_mut(iden)?.melo = true;
+            StmtKind::Melo(ident) => {
+                self.get_var_mut(ident)?.melo = true;
             }
             StmtKind::Rlyeh => {
                 // Maybe print a creepy error message or something
@@ -263,14 +263,14 @@ impl ExecEnv {
                     .write_all(include_str!("rickroll").as_bytes())
                     .expect("Failed to write to stdout");
             }
-            StmtKind::Read(iden) => {
+            StmtKind::Read(ident) => {
                 let mut value = 0;
                 for _ in 0..READ_BITS {
                     value <<= 1;
                     value += self.get_bit()? as i32;
                 }
 
-                self.get_var_mut(iden)?.value.replace(Value::Int(value));
+                self.get_var_mut(ident)?.value.replace(Value::Int(value));
             }
         }
 
@@ -287,8 +287,8 @@ impl ExecEnv {
             .iter()
             .map(|arg| {
                 if let ExprKind::Variable(name) = &arg.kind {
-                    self.get_var_rc(&Iden {
-                        iden: name.to_owned(),
+                    self.get_var_rc(&Ident {
+                        ident: name.to_owned(),
                         span: arg.span.clone(),
                     })
                 } else {
@@ -380,9 +380,9 @@ impl ExecEnv {
 
     /// Get the value of a variable. Throw an error if the variable is
     /// inaccessible or banned.
-    fn get_var(&self, name: &Iden) -> Result<Value, Error> {
+    fn get_var(&self, name: &Ident) -> Result<Value, Error> {
         // One-letter names are reserved as base55 numbers.
-        let mut chars = name.iden.chars();
+        let mut chars = name.ident.chars();
         if let (Some(first), None) = (chars.next(), chars.next()) {
             return Ok(Value::Int(base_55::char2num(first)));
         }
@@ -393,20 +393,20 @@ impl ExecEnv {
             .stack
             .iter()
             .rev()
-            .find_map(|scope| scope.variables.get(&name.iden))
+            .find_map(|scope| scope.variables.get(&name.ident))
         {
             Some(var) => {
                 if !var.melo {
                     Ok(var.value.borrow().clone())
                 } else {
                     Err(Error {
-                        kind: ErrorKind::MeloVariable(name.iden.to_owned()),
+                        kind: ErrorKind::MeloVariable(name.ident.to_owned()),
                         span: name.span.clone(),
                     })
                 }
             }
             None => Err(Error {
-                kind: ErrorKind::UnknownVariable(name.iden.to_owned()),
+                kind: ErrorKind::UnknownVariable(name.ident.to_owned()),
                 span: name.span.clone(),
             }),
         }
@@ -414,27 +414,27 @@ impl ExecEnv {
 
     /// Get a mutable reference to a variable. Throw an error if the
     /// variable is inaccessible or banned.
-    fn get_var_mut(&mut self, name: &Iden) -> Result<&mut Variable, Error> {
+    fn get_var_mut(&mut self, name: &Ident) -> Result<&mut Variable, Error> {
         // This function has a lot of duplicated code with `get_var`,
         // which I feel like is a bad sign...
         match self
             .stack
             .iter_mut()
             .rev()
-            .find_map(|scope| scope.variables.get_mut(&name.iden))
+            .find_map(|scope| scope.variables.get_mut(&name.ident))
         {
             Some(var) => {
                 if !var.melo {
                     Ok(var)
                 } else {
                     Err(Error {
-                        kind: ErrorKind::MeloVariable(name.iden.to_owned()),
+                        kind: ErrorKind::MeloVariable(name.ident.to_owned()),
                         span: name.span.clone(),
                     })
                 }
             }
             None => Err(Error {
-                kind: ErrorKind::UnknownVariable(name.iden.to_owned()),
+                kind: ErrorKind::UnknownVariable(name.ident.to_owned()),
                 span: name.span.clone(),
             }),
         }
@@ -442,7 +442,7 @@ impl ExecEnv {
 
     /// Get an Rc'd pointer to the value of a variable. Throw an error
     /// if the variable is inaccessible or banned.
-    fn get_var_rc(&mut self, name: &Iden) -> Result<Rc<RefCell<Value>>, Error> {
+    fn get_var_rc(&mut self, name: &Ident) -> Result<Rc<RefCell<Value>>, Error> {
         Ok(self.get_var_mut(name)?.value.clone())
     }
 
@@ -584,8 +584,8 @@ mod tests {
         // Declaring and reading from a variable.
         eval(&mut env, "var foo = 32; var bar = foo + 1;").unwrap();
         assert_eq!(
-            env.get_var(&Iden {
-                iden: "bar".to_owned(),
+            env.get_var(&Ident {
+                ident: "bar".to_owned(),
                 span: 1..1,
             })
             .unwrap(),
@@ -595,8 +595,8 @@ mod tests {
         // Assigning an existing variable.
         eval(&mut env, "foo = \"hi\";").unwrap();
         assert_eq!(
-            env.get_var(&Iden {
-                iden: "foo".to_owned(),
+            env.get_var(&Ident {
+                ident: "foo".to_owned(),
                 span: 1..1,
             })
             .unwrap(),
@@ -621,8 +621,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            env.get_var(&Iden {
-                iden: "foo".to_owned(),
+            env.get_var(&Ident {
+                ident: "foo".to_owned(),
                 span: 1..1,
             })
             .unwrap(),
