@@ -117,7 +117,7 @@ pub enum Token {
 
     // Literals
     /// True, False
-    #[regex("true|false", get_bool)]
+    #[regex("true|false", get_value)]
     Bool(bool),
 
     /// Always, Sometimes, Never
@@ -133,7 +133,7 @@ pub enum Token {
     String(String),
 
     /// Integer
-    #[regex(r"-?[0-9]+", get_int)]
+    #[regex(r"-?[0-9]+", get_value)]
     Integer(i32),
 
     /// A C-complaint identifier
@@ -151,11 +151,7 @@ pub enum Token {
     Error,
 }
 
-fn get_bool(lexer: &mut Lexer<Token>) -> Option<bool> {
-    lexer.slice().parse().ok()
-}
-
-fn get_int(lexer: &mut Lexer<Token>) -> Option<i32> {
+fn get_value<T: std::str::FromStr>(lexer: &mut Lexer<Token>) -> Option<T> {
     lexer.slice().parse().ok()
 }
 
