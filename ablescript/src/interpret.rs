@@ -245,9 +245,14 @@ impl ExecEnv {
                 }
             },
             StmtKind::Assign { assignable, value } => {
-                // TODO: Assigning to carts
                 let value = self.eval_expr(value)?;
-                self.get_var_mut(&assignable.ident)?.value.replace(value);
+                match &assignable.kind {
+                    crate::ast::AssignableKind::Variable => {
+                        &self.get_var_mut(&assignable.ident)?.value
+                    }
+                    crate::ast::AssignableKind::Cart { indices } => todo!("assigning to carts"),
+                }
+                .replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
