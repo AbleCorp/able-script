@@ -19,7 +19,7 @@ use std::{
 use rand::random;
 
 use crate::{
-    ast::{Expr, ExprKind, Ident, Stmt, StmtKind},
+    ast::{AssignableKind, Expr, ExprKind, Ident, Stmt, StmtKind},
     base_55,
     consts::ablescript_consts,
     error::{Error, ErrorKind},
@@ -246,13 +246,20 @@ impl ExecEnv {
             },
             StmtKind::Assign { assignable, value } => {
                 let value = self.eval_expr(value)?;
-                match &assignable.kind {
-                    crate::ast::AssignableKind::Variable => {
-                        &self.get_var_mut(&assignable.ident)?.value
+                match assignable.kind {
+                    AssignableKind::Variable => {
+                        &self.get_var_mut(&assignable.ident)?.value.replace(value);
                     }
-                    crate::ast::AssignableKind::Cart { indices } => todo!("assigning to carts"),
+                    AssignableKind::Cart { ref indices } => {
+                        let mut cell = self.get_var_rc(&assignable.ident)?;
+                        for index in indices {
+                            let index = self.eval_expr(index)?;
+                            let value = cell.borrow().to_owned();
+                            cell = Rc::clone(value.into_cart().get(&index).unwrap());
+                        }
+                        cell.replace(value);
+                    }
                 }
-                .replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
