@@ -197,7 +197,11 @@ impl ExecEnv {
 
                 self.decl_var(&ident.ident, init);
             }
-            StmtKind::Functio { ident, params, body } => {
+            StmtKind::Functio {
+                ident,
+                params,
+                body,
+            } => {
                 self.decl_var(
                     &ident.ident,
                     Value::Functio(Functio::AbleFunctio {
@@ -240,9 +244,10 @@ impl ExecEnv {
                     HaltStatus::Hopback(_) => continue,
                 }
             },
-            StmtKind::Assign { ident, value } => {
+            StmtKind::Assign { assignable, value } => {
+                // TODO: Assigning to carts
                 let value = self.eval_expr(value)?;
-                self.get_var_mut(ident)?.value.replace(value);
+                self.get_var_mut(&assignable.ident)?.value.replace(value);
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));

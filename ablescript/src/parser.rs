@@ -355,15 +355,25 @@ impl<'source> Parser<'source> {
 
                 // Variable Assignment
                 Token::Equal => {
-                    if let Some(Expr {
-                        kind: ExprKind::Variable(ident),
-                        span,
-                    }) = buf
-                    {
+                    let assignable = buf.take().and_then(|buf| match buf.kind {
+                        ExprKind::Variable(ident) => Some(Assignable {
+                            ident: Ident::new(ident, buf.span),
+                            kind: AssignableKind::Variable,
+                        }),
+                        ExprKind::Index { expr, index } => self.cart_assignable_flow(*expr, *index),
+                        _ => None,
+                    });
+
+                    if let Some(assignable) = assignable {
                         break StmtKind::Assign {
-                            ident: Ident::new(ident, span),
+                            assignable,
                             value: self.expr_flow(Token::Semicolon)?,
                         };
+                    } else {
+                        return Err(Error::new(
+                            ErrorKind::UnexpectedToken(Token::Equal),
+                            self.lexer.span(),
+                        ));
                     }
                 }
 
@@ -383,6 +393,27 @@ impl<'source> Parser<'source> {
         };
 
         Ok(r)
+    }
+
+    /// Parse Cart Assignable flow
+    fn cart_assignable_flow(&mut self, mut buf: Expr, index: Expr) -> Option<Assignable> {
+        let mut indices = vec![index];
+        let ident = loop {
+            match buf.kind {
+                ExprKind::Variable(ident) => break ident,
+                ExprKind::Index { expr, index } => {
+                    indices.push(*index);
+                    buf = *expr;
+                }
+                _ => return None,
+            }
+        };
+
+        indices.reverse();
+        Some(Assignable {
+            ident: Ident::new(ident, buf.span),
+            kind: AssignableKind::Cart { indices },
+        })
     }
 
     /// Parse If flow
@@ -431,7 +462,11 @@ impl<'source> Parser<'source> {
 
         let body = self.get_block()?;
 
-        Ok(StmtKind::Functio { ident, params, body })
+        Ok(StmtKind::Functio {
+            ident,
+            params,
+            body,
+        })
     }
 
     /// Parse BF function declaration

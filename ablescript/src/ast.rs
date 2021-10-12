@@ -39,6 +39,18 @@ impl Hash for Ident {
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]
+pub struct Assignable {
+    pub ident: Ident,
+    pub kind: AssignableKind,
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
+pub enum AssignableKind {
+    Variable,
+    Cart { indices: Vec<Expr> },
+}
+
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub struct Block {
     pub block: Vec<Stmt>,
 }
@@ -80,7 +92,7 @@ pub enum StmtKind {
         init: Option<Expr>,
     },
     Assign {
-        ident: Ident,
+        assignable: Assignable,
         value: Expr,
     },
 
