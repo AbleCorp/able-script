@@ -47,7 +47,7 @@ pub struct Assignable {
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub enum AssignableKind {
     Variable,
-    Cart { indices: Vec<Expr> },
+    Index { indices: Vec<Expr> },
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]

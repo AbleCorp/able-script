@@ -412,7 +412,7 @@ impl<'source> Parser<'source> {
         indices.reverse();
         Some(Assignable {
             ident: Ident::new(ident, buf.span),
-            kind: AssignableKind::Cart { indices },
+            kind: AssignableKind::Index { indices },
         })
     }
 

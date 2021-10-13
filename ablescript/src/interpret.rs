@@ -248,9 +248,9 @@ impl ExecEnv {
                 let value = self.eval_expr(value)?;
                 match assignable.kind {
                     AssignableKind::Variable => {
-                        &self.get_var_mut(&assignable.ident)?.value.replace(value);
+                        self.get_var_mut(&assignable.ident)?.value.replace(value);
                     }
-                    AssignableKind::Cart { ref indices } => {
+                    AssignableKind::Index { ref indices } => {
                         let mut cell = self.get_var_rc(&assignable.ident)?;
                         for index in indices {
                             let index = self.eval_expr(index)?;
