@@ -448,13 +448,4 @@ mod tests {
     fn negative_integer_overflow() {
         interpret_with_io(b"-", std::io::empty(), std::io::sink()).unwrap();
     }
-
-    #[test]
-    fn in_the_past_this_used_to_crash_but_not_anymore() {
-        let mut interpreter = Interpreter::from_ascii(
-            b"[-]++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++>[-]++>[-]>[-]<<<[>>>+<<<-]>>>[<<[<+>>+<-]>[<+>-]>-]<<<------------>>++++++++++<<[->+>-[>+>>]>[+[-<+>]>+>>]<<<<<<]>>[-]>>>++++++++++<[->-[>+>>]>[+[-<+>]>+>>]<<<<<]>[-]>>[>++++++[-<++++++++>]<.<<+>+>[-]]<[<[->-<]++++++[->++++++++<]>.[-]]<<++++++[-<++++++++>]<.[-]<<[-<+>]<", 
-            std::io::empty()
-        );
-        interpreter.interpret_with_output(std::io::sink()).unwrap();
-    }
 }
