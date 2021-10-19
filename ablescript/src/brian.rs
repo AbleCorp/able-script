@@ -110,14 +110,14 @@ impl<'a, I: BootlegRead> Interpreter<'a, I> {
                 let val = self
                     .get_or_resize_tape_mut()
                     .ok_or(ProgramError::TapeSizeExceededLimit)?;
-                *val = val.checked_add(1).ok_or(ProgramError::IntegerOverflow)?;
+                *val = val.wrapping_add(1)
             }
 
             b'-' => {
                 let val = self
                     .get_or_resize_tape_mut()
                     .ok_or(ProgramError::TapeSizeExceededLimit)?;
-                *val = val.checked_sub(1).ok_or(ProgramError::IntegerUnderflow)?;
+                *val = val.wrapping_sub(1)
             }
 
             b'.' => {
@@ -282,8 +282,6 @@ pub enum IoStatus {
 /// An error that occurred while the interpreter was advancing
 pub enum ProgramError {
     DataPointerUnderflow,
-    IntegerOverflow,
-    IntegerUnderflow,
     InputReadError,
     UnmatchedOpeningBracket,
     UnmatchedClosingBracket,
@@ -297,8 +295,6 @@ impl Display for ProgramError {
             "{}",
             match self {
                 ProgramError::DataPointerUnderflow => "data pointer underflow",
-                ProgramError::IntegerOverflow => "integer overflow",
-                ProgramError::IntegerUnderflow => "integer underflow",
                 ProgramError::InputReadError => "input read error",
                 ProgramError::UnmatchedOpeningBracket => "unmatched `[`",
                 ProgramError::UnmatchedClosingBracket => "unmatched `]`",
@@ -441,5 +437,15 @@ mod tests {
                 ProgramError::TapeSizeExceededLimit
             ))
         );
+    }
+
+    #[test]
+    fn positive_integer_overflow() {
+        interpret_with_io(b"+[+]", std::io::empty(), std::io::sink()).unwrap();
+    }
+
+    #[test]
+    fn negative_integer_overflow() {
+        interpret_with_io(b"-", std::io::empty(), std::io::sink()).unwrap();
     }
 }
