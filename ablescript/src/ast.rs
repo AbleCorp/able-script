@@ -50,6 +50,39 @@ pub enum AssignableKind {
     Index { indices: Vec<Expr> },
 }
 
+impl Assignable {
+    pub fn from_expr(expr: Expr) -> Result<Assignable, ()> {
+        match expr.kind {
+            ExprKind::Variable(ident) => Ok(Assignable {
+                ident: Ident::new(ident, expr.span),
+                kind: AssignableKind::Variable,
+            }),
+            ExprKind::Index { expr, index } => Self::from_index(*expr, *index),
+            _ => Err(()),
+        }
+    }
+
+    fn from_index(mut buf: Expr, index: Expr) -> Result<Assignable, ()> {
+        let mut indices = vec![index];
+        let ident = loop {
+            match buf.kind {
+                ExprKind::Variable(ident) => break ident,
+                ExprKind::Index { expr, index } => {
+                    indices.push(*index);
+                    buf = *expr;
+                }
+                _ => return Err(()),
+            }
+        };
+
+        indices.reverse();
+        Ok(Assignable {
+            ident: Ident::new(ident, buf.span),
+            kind: AssignableKind::Index { indices },
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub struct Block {
     pub block: Vec<Stmt>,

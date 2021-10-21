@@ -355,16 +355,7 @@ impl<'source> Parser<'source> {
 
                 // Variable Assignment
                 Token::Equal => {
-                    let assignable = buf.take().and_then(|buf| match buf.kind {
-                        ExprKind::Variable(ident) => Some(Assignable {
-                            ident: Ident::new(ident, buf.span),
-                            kind: AssignableKind::Variable,
-                        }),
-                        ExprKind::Index { expr, index } => self.cart_assignable_flow(*expr, *index),
-                        _ => None,
-                    });
-
-                    if let Some(assignable) = assignable {
+                    if let Some(Ok(assignable)) = buf.take().map(Assignable::from_expr) {
                         break StmtKind::Assign {
                             assignable,
                             value: self.expr_flow(Token::Semicolon)?,
@@ -393,27 +384,6 @@ impl<'source> Parser<'source> {
         };
 
         Ok(r)
-    }
-
-    /// Parse Cart Assignable flow
-    fn cart_assignable_flow(&mut self, mut buf: Expr, index: Expr) -> Option<Assignable> {
-        let mut indices = vec![index];
-        let ident = loop {
-            match buf.kind {
-                ExprKind::Variable(ident) => break ident,
-                ExprKind::Index { expr, index } => {
-                    indices.push(*index);
-                    buf = *expr;
-                }
-                _ => return None,
-            }
-        };
-
-        indices.reverse();
-        Some(Assignable {
-            ident: Ident::new(ident, buf.span),
-            kind: AssignableKind::Index { indices },
-        })
     }
 
     /// Parse If flow
