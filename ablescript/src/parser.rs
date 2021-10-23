@@ -76,19 +76,19 @@ impl<'source> Parser<'source> {
             Token::Melo => Ok(Stmt::new(self.melo_flow()?, start..self.lexer.span().end)),
             Token::Loop => Ok(Stmt::new(self.loop_flow()?, start..self.lexer.span().end)),
             Token::Break => Ok(Stmt::new(
-                self.semi_terminated(StmtKind::Break)?,
+                self.semicolon_terminated(StmtKind::Break)?,
                 start..self.lexer.span().end,
             )),
             Token::HopBack => Ok(Stmt::new(
-                self.semi_terminated(StmtKind::HopBack)?,
+                self.semicolon_terminated(StmtKind::HopBack)?,
                 start..self.lexer.span().end,
             )),
             Token::Rlyeh => Ok(Stmt::new(
-                self.semi_terminated(StmtKind::Rlyeh)?,
+                self.semicolon_terminated(StmtKind::Rlyeh)?,
                 start..self.lexer.span().end,
             )),
             Token::Rickroll => Ok(Stmt::new(
-                self.semi_terminated(StmtKind::Rickroll)?,
+                self.semicolon_terminated(StmtKind::Rickroll)?,
                 start..self.lexer.span().end,
             )),
 
@@ -116,7 +116,7 @@ impl<'source> Parser<'source> {
     /// Require statement to be semicolon terminated
     ///
     /// Utility function for short statements
-    fn semi_terminated(&mut self, stmt_kind: StmtKind) -> Result<StmtKind, Error> {
+    fn semicolon_terminated(&mut self, stmt_kind: StmtKind) -> Result<StmtKind, Error> {
         self.require(Token::Semicolon)?;
         Ok(stmt_kind)
     }
@@ -340,7 +340,7 @@ impl<'source> Parser<'source> {
                     let stmt = StmtKind::Print(buf.take().ok_or_else(|| {
                         Error::new(ErrorKind::UnexpectedToken(Token::Print), self.lexer.span())
                     })?);
-                    break self.semi_terminated(stmt)?;
+                    break self.semicolon_terminated(stmt)?;
                 }
 
                 // Functio call
@@ -533,7 +533,7 @@ impl<'source> Parser<'source> {
     /// Parse Melo flow
     fn melo_flow(&mut self) -> Result<StmtKind, Error> {
         let ident = self.get_ident()?;
-        self.semi_terminated(StmtKind::Melo(ident))
+        self.semicolon_terminated(StmtKind::Melo(ident))
     }
 
     /// Parse loop flow
