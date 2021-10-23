@@ -255,14 +255,20 @@ impl ExecEnv {
                         for index in indices {
                             let index = self.eval_expr(index)?;
 
-                            let value = cell.borrow().to_owned();
-                            let mut value = value.into_cart();
-                            if let Some(x) = value.get(&index) {
-                                cell = Rc::clone(x);
-                            } else {
-                                cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
-                                value.insert(index, Rc::clone(&cell));
+                            let next_cell;
+                            match &mut *cell.borrow_mut() {
+                                Value::Cart(c) => {
+                                    if let Some(x) = c.get(&index) {
+                                        next_cell = Rc::clone(x);
+                                    } else {
+                                        next_cell =
+                                            Rc::new(RefCell::new(Value::Cart(Default::default())));
+                                        c.insert(index, Rc::clone(&next_cell));
+                                    }
+                                }
+                                _ => todo!(),
                             }
+                            cell = next_cell;
                         }
                         cell.replace(value);
                     }
