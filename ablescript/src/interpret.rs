@@ -280,14 +280,21 @@ impl ExecEnv {
                     .write_all(include_str!("rickroll").as_bytes())
                     .expect("Failed to write to stdout");
             }
-            StmtKind::Read(ident) => {
+            StmtKind::Read(assignable) => {
                 let mut value = 0;
                 for _ in 0..READ_BITS {
                     value <<= 1;
                     value += self.get_bit()? as i32;
                 }
 
-                self.get_var_mut(ident)?.value.replace(Value::Int(value));
+                match assignable.kind {
+                    AssignableKind::Variable => {
+                        self.get_var_mut(&assignable.ident)?
+                            .value
+                            .replace(Value::Int(value));
+                    }
+                    AssignableKind::Index { .. } => todo!(),
+                }
             }
         }
 

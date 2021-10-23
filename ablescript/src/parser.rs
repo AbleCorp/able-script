@@ -370,12 +370,14 @@ impl<'source> Parser<'source> {
 
                 // Read input
                 Token::Read => {
-                    if let Some(Expr {
-                        kind: ExprKind::Variable(ident),
-                        span,
-                    }) = buf
-                    {
-                        break self.semi_terminated(StmtKind::Read(Ident::new(ident, span)))?;
+                    if let Some(Ok(assignable)) = buf.take().map(Assignable::from_expr) {
+                        self.require(Token::Semicolon)?;
+                        break StmtKind::Read(assignable);
+                    } else {
+                        return Err(Error::new(
+                            ErrorKind::UnexpectedToken(Token::Read),
+                            self.lexer.span(),
+                        ));
                     }
                 }
 

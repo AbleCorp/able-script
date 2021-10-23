@@ -144,7 +144,7 @@ pub enum StmtKind {
         args: Vec<Expr>,
     },
     Print(Expr),
-    Read(Ident),
+    Read(Assignable),
     Melo(Ident),
     Rlyeh,
     Rickroll,
