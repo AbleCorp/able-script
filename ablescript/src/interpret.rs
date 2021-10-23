@@ -254,8 +254,15 @@ impl ExecEnv {
                         let mut cell = self.get_var_rc(&assignable.ident)?;
                         for index in indices {
                             let index = self.eval_expr(index)?;
+
                             let value = cell.borrow().to_owned();
-                            cell = Rc::clone(value.into_cart().get(&index).unwrap());
+                            let mut value = value.into_cart();
+                            if let Some(x) = value.get(&index) {
+                                cell = Rc::clone(x);
+                            } else {
+                                cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
+                                value.insert(index, Rc::clone(&cell));
+                            }
                         }
                         cell.replace(value);
                     }
