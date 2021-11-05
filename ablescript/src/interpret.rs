@@ -11,6 +11,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
     io::{stdin, stdout, Read, Write},
+    mem::swap,
     ops::Range,
     process::exit,
     rc::Rc,
@@ -266,7 +267,18 @@ impl ExecEnv {
                                         c.insert(index, Rc::clone(&next_cell));
                                     }
                                 }
-                                _ => todo!(),
+                                x => {
+                                    // Annoying borrow checker dance
+                                    // to move *x.
+                                    let mut tmp = Value::Nul;
+                                    swap(&mut tmp, x);
+
+                                    let mut c = tmp.into_cart();
+                                    next_cell =
+                                        Rc::new(RefCell::new(Value::Cart(Default::default())));
+                                    c.insert(index, Rc::clone(&next_cell));
+                                    *x = Value::Cart(c);
+                                }
                             }
                             cell = next_cell;
                         }
