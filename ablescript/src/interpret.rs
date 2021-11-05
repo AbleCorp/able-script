@@ -20,7 +20,7 @@ use std::{
 use rand::random;
 
 use crate::{
-    ast::{AssignableKind, Expr, ExprKind, Ident, Stmt, StmtKind},
+    ast::{Assignable, AssignableKind, Expr, ExprKind, Ident, Stmt, StmtKind},
     base_55,
     consts::ablescript_consts,
     error::{Error, ErrorKind},
@@ -246,45 +246,7 @@ impl ExecEnv {
                 }
             },
             StmtKind::Assign { assignable, value } => {
-                let value = self.eval_expr(value)?;
-                match assignable.kind {
-                    AssignableKind::Variable => {
-                        self.get_var_mut(&assignable.ident)?.value.replace(value);
-                    }
-                    AssignableKind::Index { ref indices } => {
-                        let mut cell = self.get_var_rc(&assignable.ident)?;
-                        for index in indices {
-                            let index = self.eval_expr(index)?;
-
-                            let next_cell;
-                            match &mut *cell.borrow_mut() {
-                                Value::Cart(c) => {
-                                    if let Some(x) = c.get(&index) {
-                                        next_cell = Rc::clone(x);
-                                    } else {
-                                        next_cell =
-                                            Rc::new(RefCell::new(Value::Cart(Default::default())));
-                                        c.insert(index, Rc::clone(&next_cell));
-                                    }
-                                }
-                                x => {
-                                    // Annoying borrow checker dance
-                                    // to move *x.
-                                    let mut tmp = Value::Nul;
-                                    swap(&mut tmp, x);
-
-                                    let mut c = tmp.into_cart();
-                                    next_cell =
-                                        Rc::new(RefCell::new(Value::Cart(Default::default())));
-                                    c.insert(index, Rc::clone(&next_cell));
-                                    *x = Value::Cart(c);
-                                }
-                            }
-                            cell = next_cell;
-                        }
-                        cell.replace(value);
-                    }
-                }
+                self.assign(assignable, self.eval_expr(value)?)?;
             }
             StmtKind::Break => {
                 return Ok(HaltStatus::Break(stmt.span.clone()));
@@ -312,18 +274,53 @@ impl ExecEnv {
                     value += self.get_bit()? as i32;
                 }
 
-                match assignable.kind {
-                    AssignableKind::Variable => {
-                        self.get_var_mut(&assignable.ident)?
-                            .value
-                            .replace(Value::Int(value));
-                    }
-                    AssignableKind::Index { .. } => todo!(),
-                }
+                self.assign(assignable, Value::Int(value))?;
             }
         }
 
         Ok(HaltStatus::Finished)
+    }
+
+    /// Assign a value to an Assignable.
+    fn assign(&mut self, dest: &Assignable, value: Value) -> Result<(), Error> {
+        match dest.kind {
+            AssignableKind::Variable => {
+                self.get_var_mut(&dest.ident)?.value.replace(value);
+            }
+            AssignableKind::Index { ref indices } => {
+                let mut cell = self.get_var_rc(&dest.ident)?;
+                for index in indices {
+                    let index = self.eval_expr(index)?;
+
+                    let next_cell;
+                    match &mut *cell.borrow_mut() {
+                        Value::Cart(c) => {
+                            if let Some(x) = c.get(&index) {
+                                next_cell = Rc::clone(x);
+                            } else {
+                                next_cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
+                                c.insert(index, Rc::clone(&next_cell));
+                            }
+                        }
+                        x => {
+                            // Annoying borrow checker dance
+                            // to move *x.
+                            let mut tmp = Value::Nul;
+                            swap(&mut tmp, x);
+
+                            let mut c = tmp.into_cart();
+                            next_cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
+                            c.insert(index, Rc::clone(&next_cell));
+                            *x = Value::Cart(c);
+                        }
+                    }
+                    cell = next_cell;
+                }
+                cell.replace(value);
+            }
+        }
+
+        Ok(())
     }
 
     /// Call a function with the given arguments (i.e., actual
