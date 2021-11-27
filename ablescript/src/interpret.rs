@@ -11,7 +11,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
     io::{stdin, stdout, Read, Write},
-    mem::swap,
+    mem::take,
     ops::Range,
     process::exit,
     rc::Rc,
@@ -292,28 +292,35 @@ impl ExecEnv {
                 for index in indices {
                     let index = self.eval_expr(index)?;
 
-                    let next_cell;
-                    match &mut *cell.borrow_mut() {
+                    let next_cell = match &mut *cell.borrow_mut() {
                         Value::Cart(c) => {
+                            // cell is a cart, so we can do simple
+                            // indexing.
                             if let Some(x) = c.get(&index) {
-                                next_cell = Rc::clone(x);
+                                // cell[index] exists, get a shared
+                                // reference to it.
+                                Rc::clone(x)
                             } else {
-                                next_cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
+                                // cell[index] does not exist, so we
+                                // insert an empty cart by default
+                                // instead.
+                                let next_cell =
+                                    Rc::new(RefCell::new(Value::Cart(Default::default())));
                                 c.insert(index, Rc::clone(&next_cell));
+                                next_cell
                             }
                         }
                         x => {
-                            // Annoying borrow checker dance
-                            // to move *x.
-                            let mut tmp = Value::Nul;
-                            swap(&mut tmp, x);
-
-                            let mut c = tmp.into_cart();
-                            next_cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
-                            c.insert(index, Rc::clone(&next_cell));
-                            *x = Value::Cart(c);
+                            // cell is not a cart; `take` it, convert
+                            // it into a cart, and write the result
+                            // back into it.
+                            let mut cart = take(x).into_cart();
+                            let next_cell = Rc::new(RefCell::new(Value::Cart(Default::default())));
+                            cart.insert(index, Rc::clone(&next_cell));
+                            *x = Value::Cart(cart);
+                            next_cell
                         }
-                    }
+                    };
                     cell = next_cell;
                 }
                 cell.replace(value);

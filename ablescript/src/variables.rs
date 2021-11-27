@@ -60,6 +60,12 @@ pub enum Value {
     Cart(Cart),
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Self::Nul
+    }
+}
+
 impl Hash for Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         discriminant(self).hash(state);
