@@ -18,6 +18,9 @@
 
 #![deny(missing_docs)]
 
+// Putting this here because we still don't use the entire capabilities of this module. ~~Alex
+#![allow(dead_code)]
+
 use std::{
     collections::VecDeque,
     error::Error,
