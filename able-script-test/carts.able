@@ -1,8 +1,0 @@
-functio helloable() {
-    "Hello, Able!" print;
-}
-
-var cart = ["able" <= 42, helloable <= "hello"];
-
-cart[42] print;
-cart["hello"]();

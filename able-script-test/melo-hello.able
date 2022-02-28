@@ -1,3 +1,0 @@
-var hi = "wonk";
-melo hi;
-hi print; owo Should error out

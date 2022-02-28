@@ -1,5 +1,0 @@
-var data;
-loop {
-   data read;
-   data print;
-}
