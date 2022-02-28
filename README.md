@@ -1,2 +1,2 @@
-### AbleScript Repository has moved to <https://git.ablecorp.us/AbleScript/able-script>
+### AbleScript repository has moved to <https://git.ablecorp.us/AbleScript/able-script>
 
